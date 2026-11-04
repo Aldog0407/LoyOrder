@@ -182,6 +182,27 @@ static class Pruebas
         Afirmar.Verdadero(h.Peticiones[1].Url.Contains("store_ids=t1"), "Debe filtrar por store_ids");
     }
 
+    public static async Task Prueba_ExistenciasAlConfirmarSoloDevuelveLasVariantesDelCarrito()
+    {
+        var (c, h, _) = Fabrica.Crear();
+        h.Responder(HttpStatusCode.OK, """{"inventory_levels":[{"variant_id":"cola","store_id":"t1","in_stock":47},{"variant_id":"lim","store_id":"t1","in_stock":-1}],"cursor":"p2"}""")
+         .Responder(HttpStatusCode.OK, """{"inventory_levels":[{"variant_id":"naranja","store_id":"t1","in_stock":24}]}""");
+        var ex = await c.ObtenerExistenciasDeVariantesAsync("t1", new[] { "lim", "naranja", "hamb-clasica" });
+        Afirmar.Igual(2, ex.Count, "Variantes con inventario:");
+        Afirmar.Igual(-1m, ex["lim"], "Lima-limón:");
+        Afirmar.Igual(24m, ex["naranja"], "Naranja (segunda página):");
+        Afirmar.Verdadero(!ex.ContainsKey("hamb-clasica"), "La hamburguesa no lleva inventario y no debe aparecer");
+        Afirmar.Verdadero(h.Peticiones[0].Url.Contains("store_ids=t1"), "Debe filtrar por la tienda");
+    }
+
+    public static async Task Prueba_ExistenciasAlConfirmarConCarritoVacioNoConsulta()
+    {
+        var (c, h, _) = Fabrica.Crear();
+        var ex = await c.ObtenerExistenciasDeVariantesAsync("t1", Array.Empty<string>());
+        Afirmar.Igual(0, ex.Count, "Resultado:");
+        Afirmar.Igual(0, h.Peticiones.Count, "Peticiones:");
+    }
+
     public static async Task Prueba_401NoSeReintentaYLanzaNoAutorizado()
     {
         var (c, h, _) = Fabrica.Crear();

@@ -10,6 +10,15 @@ Biblioteca de .NET 10 (LTS) que usa la API REST de LoyOrder (ASP.NET Core) para 
   - 429 reintenta hasta 3 veces con espera de 2, 4 y 8 s, o la que indique `Retry-After`.
   - Los 5xx y las fallas de red se reintentan en las consultas, pero **nunca** al registrar una venta, para no duplicarla (RN08). Para eso está `BuscarReciboPorFolioAsync`.
 
+## Consulta de existencias al confirmar un pedido
+
+`ObtenerExistenciasDeVariantesAsync(tiendaId, varianteIds)` consulta las existencias **actuales** de las variantes del carrito
+justo antes de registrar el pedido (EV-21 paso 6, EV-24). Cubre los minutos entre una sincronización y otra.
+
+- Las variantes que no aparecen en el resultado no llevan control de inventario y no se limitan.
+- Si Loyverse no responde (`LoyverseException`), el servicio de pedidos valida con la última sincronización y no bloquea el pedido.
+- No sustituye al polling del CU-10, que es el que mantiene precios, disponibilidad, imágenes y artículos nuevos o eliminados.
+
 ## Estructura
 
 ```
@@ -21,7 +30,7 @@ backend/infrastructure/LoyOrder.Infrastructure.Loyverse/   Biblioteca (sin paque
   Excepciones.cs                     LoyverseException y derivadas
   LoyverseOptions.cs                 Configuración (sección "Loyverse")
   ServiceCollectionExtensions.cs     services.AddLoyverse(configuration)
-tests/unit/LoyOrder.Infrastructure.Loyverse.Tests/          19 pruebas sin red (HttpMessageHandler y reloj falsos)
+tests/unit/LoyOrder.Infrastructure.Loyverse.Tests/          21 pruebas sin red (HttpMessageHandler y reloj falsos)
 tests/integration/LoyOrder.Infrastructure.Loyverse.Demo/    Consola que consulta la cuenta de PRUEBA (no registra ventas)
 LoyOrder.sln                                                Solución en la raíz del repo
 ```
@@ -62,7 +71,7 @@ En producción, el token se guarda cifrado con la configuración del restaurante
 ## Probar
 
 ```bash
-dotnet run --project tests/unit/LoyOrder.Infrastructure.Loyverse.Tests        # 19 pruebas, sin internet
+dotnet run --project tests/unit/LoyOrder.Infrastructure.Loyverse.Tests        # 21 pruebas, sin internet
 
 # Demo con la cuenta de prueba (el token se queda en user-secrets, fuera del repo)
 dotnet user-secrets set "Loyverse:Token" "<token de la cuenta de prueba>" --project tests/integration/LoyOrder.Infrastructure.Loyverse.Demo

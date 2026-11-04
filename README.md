@@ -15,14 +15,9 @@ Permitir a clientes realizar pedidos y al personal del restaurante administrarlo
 
 La tecnología definitiva del frontend, backend y base de datos se incorpora una vez confirmada la decisión de la tarea 1.2.6.
 
-## Convención de ramas
+## Rama de trabajo
 
-- `main`: versión revisada y estable.
-- `develop`: integración del trabajo del equipo.
-- `feature/<descripcion-corta>`: desarrollo de una funcionalidad.
-- `fix/<descripcion-corta>`: corrección de un defecto.
-
-Ejemplos: `feature/autenticacion`, `feature/carrito`, `fix/validacion-pedido`.
+Todo el equipo trabaja directamente en `main`. Las reglas están en `docs/REGLAS_GIT.md`.
 
 ## Convención de commits
 
@@ -39,12 +34,11 @@ Ejemplos: `chore: crear estructura inicial`, `docs: agregar diagrama de casos de
 
 ## Flujo de trabajo
 
-1. Actualizar `develop`.
-2. Crear una rama de trabajo basada en `develop`.
-3. Hacer cambios y commits con mensajes claros.
-4. Subir la rama y abrir un Pull Request hacia `develop`.
-5. Pedir revisión a otro integrante antes de fusionar.
-6. Integrar en `main` únicamente una versión revisada.
+1. Traer los cambios del equipo: `git pull origin main`.
+2. Hacer los cambios y comprobar que compilan y pasan las pruebas.
+3. Hacer commit con un mensaje claro.
+4. Traer cambios otra vez con `git pull --rebase origin main` y resolver conflictos si aparecen.
+5. Subir con `git push origin main` y avisar al equipo qué se subió.
 
 ## Seguridad
 

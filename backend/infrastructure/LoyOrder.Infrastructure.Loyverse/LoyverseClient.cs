@@ -34,6 +34,14 @@ public interface ILoyverseClient
     /// <summary>CU-10 paso 5: existencias por variante de una tienda.</summary>
     Task<IReadOnlyList<NivelInventario>> ObtenerExistenciasAsync(string tiendaId, CancellationToken ct = default);
 
+    /// <summary>
+    /// EV-21 paso 6 y EV-24 paso 2: existencias actuales de las variantes del carrito al confirmar un pedido.
+    /// Consulta el inventario de la tienda (una petición por cada 250 variantes con inventario) y devuelve solo las
+    /// variantes pedidas que llevan control de existencias. Una variante que no aparece en el resultado no lleva
+    /// control de inventario en Loyverse y no se limita por existencias.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, decimal>> ObtenerExistenciasDeVariantesAsync(string tiendaId, IEnumerable<string> varianteIds, CancellationToken ct = default);
+
     /// <summary>CU-20: registra la venta. Nunca se reintenta solo ante fallas de red, para no duplicarla (RN08).</summary>
     Task<Recibo> CrearReciboAsync(NuevoRecibo recibo, CancellationToken ct = default);
 
@@ -98,6 +106,16 @@ public sealed class LoyverseClient : ILoyverseClient
 
     public Task<IReadOnlyList<NivelInventario>> ObtenerExistenciasAsync(string tiendaId, CancellationToken ct = default) =>
         ObtenerTodosAsync<PaginaInventario, NivelInventario>("inventory", new() { ["store_ids"] = tiendaId }, null, ct);
+
+    public async Task<IReadOnlyDictionary<string, decimal>> ObtenerExistenciasDeVariantesAsync(string tiendaId, IEnumerable<string> varianteIds, CancellationToken ct = default)
+    {
+        var pedidas = varianteIds.ToHashSet();
+        if (pedidas.Count == 0) return new Dictionary<string, decimal>();
+        var inventario = await ObtenerExistenciasAsync(tiendaId, ct).ConfigureAwait(false);
+        return inventario.Where(n => pedidas.Contains(n.VarianteId) && (string.IsNullOrEmpty(n.TiendaId) || n.TiendaId == tiendaId))
+                         .GroupBy(n => n.VarianteId)
+                         .ToDictionary(g => g.Key, g => g.Sum(n => n.Existencias));
+    }
 
     public async Task<Recibo> CrearReciboAsync(NuevoRecibo recibo, CancellationToken ct = default)
     {
