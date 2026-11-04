@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Demo contra la cuenta de PRUEBA de Loyverse. Solo consulta; no registra ventas. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>loyorder-infrastructure-loyverse-demo</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\..\backend\infrastructure\LoyOrder.Infrastructure.Loyverse\LoyOrder.Infrastructure.Loyverse.csproj" />
+  </ItemGroup>
+
+</Project>
