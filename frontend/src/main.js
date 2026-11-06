@@ -1,10 +1,12 @@
+import { cumpleContrasena, mensajeContrasena } from './politica-contrasena.js';
+import { actual, registrar, iniciar, cerrar, cuandoVenza } from './auth.js';
 import { categories, dishes, findDish, money } from './data.js';
 import { state, update, save } from './store.js';
 
 const app = document.querySelector('#app');
 const overlays = document.querySelector('#overlay-root');
 const toastRoot = document.querySelector('#toast-root');
-const paths = ['/menu', '/seguimiento', '/historial', '/admin'];
+const paths = ['/login', '/registro', '/menu', '/seguimiento', '/historial', '/admin', '/operacion'];
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const icon = name => ({ cart: '🛒', clock: '◷', history: '▤', grid: '▦' })[name] || '•';
 const activeOrder = () => state.orders.find(o => o.id === state.activeOrderId);
@@ -36,10 +38,13 @@ function toast(message, kind = 'success') {
 }
 
 function header() {
+  const u = actual();
+  if (!u) return `<header class="site-header"><div class="header-inner"><span class="logo">Loy<span>Order</span></span><nav><button class="button subtle" data-route="/login">Iniciar sesión</button><button class="button primary" data-route="/registro">Crear cuenta</button></nav></div></header>`;
+  if (u.rol !== 'CLIENTE') return `<header class="site-header"><div class="header-inner"><span class="logo">Loy<span>Order</span></span><span>${escapeHtml(u.nombre)} · ${escapeHtml(u.rol)}</span><button class="button subtle" data-action="logout">Cerrar sesión</button></div></header>`;
   const links = [['/menu', 'Explorar menú'], ['/seguimiento', 'Mi pedido'], ['/historial', 'Historial']];
   return `<header class="site-header"><div class="header-inner"><a class="logo" href="/menu" data-link><span class="logo-mark">✳</span>Loy<span>Order</span></a>
     <nav class="main-nav ${state.mobileMenu ? 'open' : ''}" aria-label="Navegación principal">${links.map(([url, label]) => `<a href="${url}" data-link class="${path === url ? 'active' : ''}">${label}</a>`).join('')}</nav>
-    <div class="header-actions"><button class="role-switch ${path === '/admin' ? 'selected' : ''}" data-route="${path === '/admin' ? '/menu' : '/admin'}">${path === '/admin' ? '← Vista cliente' : 'Vista admin ↗'}</button><button class="cart-top" data-action="cart" aria-label="Abrir carrito">🛒 <span>Carrito</span><b>${itemCount()}</b></button><button class="menu-toggle" data-action="mobile-menu" aria-label="Abrir menú">☰</button></div></div></header>`;
+    <div class="header-actions"><button class="button subtle" data-action="logout">Cerrar sesión</button><button class="cart-top" data-action="cart" aria-label="Abrir carrito">🛒 <span>Carrito</span><b>${itemCount()}</b></button><button class="menu-toggle" data-action="mobile-menu" aria-label="Abrir menú">☰</button></div></div></header>`;
 }
 
 function card(d) {
@@ -106,9 +111,34 @@ function reorderModal(id) {
   return `<div class="backdrop" data-close><section class="modal confirm-modal" role="dialog" aria-modal="true" aria-label="Confirmar reordenación"><button class="close-button" data-close aria-label="Cerrar">×</button><div class="rate-face">🔄</div><h2>¿Deseas volver a pedirlo?</h2><p>Agregaremos los platillos disponibles del pedido ${o.id} a tu carrito. Podrás revisarlos antes de confirmar.</p><button class="button primary full" data-confirm-reorder="${id}">Sí, reordenar</button><button class="button subtle full" data-close>Cancelar</button></section></div>`;
 }
 
+function destino() { return actual()?.rol === 'ADMINISTRADOR' ? '/admin' : actual()?.rol === 'OPERADOR' ? '/operacion' : '/menu'; }
+function limpiarDatosCliente() {
+  update({ cart: [], orders: [], activeOrderId: null, address: '', location: {x:50,y:50}, drawer:false, modal:null });
+}
+function accesoVista() {
+  const registro = path === '/registro';
+  return `<main class="container auth-wrap"><section class="auth-card"><span class="eyebrow orange">BIENVENIDO A LOYORDER</span><h1>${registro ? 'Crea tu cuenta' : 'Iniciar sesión'}</h1><p>${registro ? 'Regístrate para realizar tus pedidos.' : 'Accede con tu correo y contraseña.'}</p><form id="auth-form">
+  ${registro ? '<label>Nombre<input name="nombre" required maxlength="100" autocomplete="name"></label><label>Teléfono (opcional)<input name="telefono" maxlength="20" autocomplete="tel" type="tel"></label>' : ''}
+  <label>Correo electrónico<input name="correo" type="email" required maxlength="150" autocomplete="email"></label>
+  <label>Contraseña<input name="contrasena" type="password" required ${registro ? 'minlength="8" aria-describedby="password-help"' : ''} maxlength="128" autocomplete="${registro ? 'new-password' : 'current-password'}"></label>
+  ${registro ? '<label>Confirmar contraseña<input name="confirmacion" type="password" required maxlength="128" autocomplete="new-password"></label><small id="password-help">Entre 8 y 128 caracteres y al menos un símbolo, como !, # o $.</small>' : ''}
+  <p id="auth-error" role="alert" aria-live="polite"></p><button class="button primary full" type="submit">${registro ? 'Crear cuenta' : 'Iniciar sesión'}</button></form>
+  <button class="button subtle full" data-route="${registro ? '/login' : '/registro'}">${registro ? 'Ya tengo cuenta' : 'Crear una cuenta de cliente'}</button></section></main>`;
+}
+function operacion() {
+  return `<main class="container auth-wrap"><section class="auth-card"><h1>Acceso de operador</h1><p>Sesión iniciada como ${escapeHtml(actual().nombre)}.</p><p>Las funciones de operación de pedidos se integrarán en sus actividades correspondientes.</p></section></main>`;
+}
 function render() {
-  document.title = `${({ '/menu': 'Menú', '/seguimiento': 'Seguimiento', '/historial': 'Historial', '/admin': 'Dashboard' })[path]} · LoyOrder`;
-  app.innerHTML = `${header()}${({ '/menu': menu, '/seguimiento': tracking, '/historial': historyPage, '/admin': admin })[path]()}<footer class="site-footer"><div class="container"><span class="logo"><span class="logo-mark">✳</span>Loy<span>Order</span></span><p>Hecho con sabor y mucho cariño. · Demo frontend © 2026</p></div></footer><button class="cart-fab" data-action="cart" aria-label="Abrir carrito">🛒${itemCount() ? `<b>${itemCount()}</b>` : ''}</button>`;
+  if (!actual() && !['/login','/registro'].includes(path)) path='/login';
+  if (actual() && (['/login','/registro'].includes(path) || (path==='/admin' && actual().rol!=='ADMINISTRADOR') || (path==='/operacion' && actual().rol!=='OPERADOR') || (['/menu','/seguimiento','/historial'].includes(path) && actual().rol!=='CLIENTE'))) path=destino();
+  if (location.pathname!==path) history.replaceState({},'',path);
+  if (['/login','/registro'].includes(path)) {
+    document.title = `${path==='/login' ? 'Iniciar sesión' : 'Registro'} · LoyOrder`;
+    app.innerHTML=header()+accesoVista();overlays.innerHTML='';document.body.classList.remove('overlay-open');return;
+  }
+
+  document.title = `${({ '/menu': 'Menú', '/seguimiento': 'Seguimiento', '/historial': 'Historial', '/admin': 'Dashboard', '/operacion': 'Operación' })[path]} · LoyOrder`;
+  app.innerHTML = `${header()}${({ '/menu': menu, '/seguimiento': tracking, '/historial': historyPage, '/admin': admin, '/operacion': operacion })[path]()}<footer class="site-footer"><div class="container"><span class="logo"><span class="logo-mark">✳</span>Loy<span>Order</span></span><p>Hecho con sabor y mucho cariño. · Demo frontend © 2026</p></div></footer>${actual().rol === 'CLIENTE' ? `<button class="cart-fab" data-action="cart" aria-label="Abrir carrito">🛒</button>` : ''}`;
   overlays.innerHTML = state.drawer ? cartDrawer() : state.modal?.type === 'detail' ? detailModal(state.modal.id) : state.modal?.type === 'map' ? mapModal() : state.modal?.type === 'confirm' ? confirmModal() : state.modal?.type === 'rate' ? rateModal() : state.modal?.type === 'reorder' ? reorderModal(state.modal.id) : '';
   document.body.classList.toggle('overlay-open', !!state.drawer || !!state.modal);
   if (state.modal?.type === 'map') setupMap();
@@ -159,6 +189,10 @@ document.addEventListener('click', event => {
   }
   if (d.track) { update({ activeOrderId: d.track }); navigate('/seguimiento'); return; }
   const action = d.action;
+  if (action === 'logout') {
+    el.disabled=true;
+    cerrar().then(()=>{limpiarDatosCliente();navigate('/login');}).catch(error=>{el.disabled=false;toast(error.message,'error');});return;
+  }
   if (action === 'cart') { update({ drawer: true, modal: null }); render(); }
   if (action === 'close') { update({ drawer: false, modal: null }); render(); }
   if (action === 'mobile-menu') { update({ mobileMenu: !state.mobileMenu }); render(); }
@@ -177,6 +211,25 @@ document.addEventListener('click', event => {
   if (action === 'submit-rating') { if (!rating) return; const order = state.orders.find(o => o.id === ratingOrderId); if (order) { order.rated = true; order.rating = rating; } update({ modal: null }); render(); toast('¡Gracias por tu calificación!'); }
 });
 
+document.addEventListener('submit', async event => {
+  if (event.target.id!=='auth-form') return;
+  event.preventDefault();
+  const form=event.target;const error=form.querySelector('#auth-error');const submit=form.querySelector('[type="submit"]');
+  const datos=Object.fromEntries(new FormData(form));
+  if(path==='/registro' && !cumpleContrasena(datos.contrasena)){error.textContent=mensajeContrasena;return;}
+  if(path==='/registro' && datos.contrasena!==datos.confirmacion){error.textContent='Las contraseñas no coinciden.';return;}
+  submit.disabled=true;error.textContent='';
+  try {
+    if(path==='/registro') {
+      delete datos.confirmacion;
+      datos.telefono=datos.telefono || null;
+      await registrar(datos);navigate('/login');toast('Cuenta creada. Ya puedes iniciar sesión.');
+    } else {
+      await iniciar({correo:datos.correo,contrasena:datos.contrasena});limpiarDatosCliente();navigate(destino());
+    }
+  } catch(e) {error.textContent=e.message;submit.disabled=false;}
+});
+cuandoVenza(()=>{limpiarDatosCliente();navigate('/login');toast('La sesión venció. Inicia sesión nuevamente.','error');});
 document.addEventListener('change', event => {
   if (event.target.name === 'variant') { detailVariant = event.target.value; return; }
   if (event.target.name === 'delivery') { update({ delivery: event.target.value }); render(); }

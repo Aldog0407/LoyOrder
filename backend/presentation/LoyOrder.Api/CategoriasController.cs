@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using LoyOrder.Application;
 using Microsoft.AspNetCore.Mvc;
 namespace LoyOrder.Api;
+[Microsoft.AspNetCore.Authorization.Authorize(Roles = LoyOrder.Domain.Roles.Cliente)]
 [ApiController]
 [Route("api/v1/categorias")]
 public sealed class CategoriasController(ConsultarCategorias consulta) : ControllerBase

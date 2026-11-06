@@ -59,3 +59,8 @@ Los colores, radios, sombras y fuente están en `:root` de `styles.css`, conform
 ## Nota de producción
 
 Este entregable corresponde únicamente al **proyecto base funcional del frontend**. La interfaz no constituye un sistema de pedidos operativo y los datos del navegador pueden borrarse en cualquier momento.
+
+
+## Acceso 7.2.1
+
+Se agregaron /login, /registro y /operacion. Consultar `../docs/ACTIVIDAD_7_2_1.md`. El acceso ya usa la API; las funcionalidades de pedidos y los datos de negocio continúan simulados. La API debe ejecutarse en localhost:5080 y tener conexión a PostgreSQL para registrar o autenticar cuentas reales.

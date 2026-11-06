@@ -7,6 +7,7 @@ public static class ApiHost
     public static WebApplication Crear(string[] args, Action<IServiceCollection>? configurar = null)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.AgregarAcceso();
         builder.Services.AddControllers().AddApplicationPart(typeof(CategoriasController).Assembly);
         builder.Services.AddProblemDetails(o => o.CustomizeProblemDetails = context =>
             context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier);
@@ -24,6 +25,10 @@ public static class ApiHost
         var app = builder.Build();
         app.UseExceptionHandler();
         app.UseStatusCodePages();
+        app.UseCors("Frontend");
+        app.UseRateLimiter();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapControllers();
         app.MapGet("/health/live", () => Results.Ok(new { estado = "Activo" }));
         app.MapGet("/health/ready", async (ICategoriaRepository repo, CancellationToken ct) =>
