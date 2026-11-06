@@ -1,0 +1,12 @@
+import { useState } from 'react';
+import { Link } from 'react-router';
+import { money } from '../data/menu.js';
+import { useStore } from '../state/StoreContext.jsx';
+
+export default function AdminDashboard() {
+  const { state } = useStore();
+  const [period, setPeriod] = useState('Hoy');
+  const completed = state.orders.filter(o => o.status === 3);
+  const sales = completed.reduce((sum, o) => sum + o.total, 0);
+  return <main className="container page admin-page"><div className="admin-top"><div><span className="eyebrow orange">PANEL DE CONTROL</span><h1>Dashboard</h1><p>Resumen de actividad de LoyOrder.</p></div><div className="periods">{['Hoy', 'Semana', 'Mes'].map(p => <button key={p} className={period === p ? 'active' : ''} onClick={() => setPeriod(p)}>{p}</button>)}</div></div><div className="kpi-grid"><div className="surface kpi"><span className="kpi-icon orange-bg">＄</span><span>Ventas · {period}</span><strong>{money(sales)}</strong><small>Total de pedidos demo completados</small></div><div className="surface kpi"><span className="kpi-icon green-bg">✓</span><span>Pedidos completados</span><strong>{completed.length}</strong><small>No hay un filtro temporal real todavía</small></div><div className="surface kpi"><span className="kpi-icon yellow-bg">★</span><span>Calificación promedio</span><strong>{state.orders.some(o => o.rating) ? (state.orders.filter(o => o.rating).reduce((s, o) => s + o.rating, 0) / state.orders.filter(o => o.rating).length).toFixed(1) : '—'}</strong><small>Calificaciones de esta demostración</small></div></div><section className="surface table-section"><div className="table-top"><div><h2>Últimos pedidos</h2><p>Actividad reciente</p></div><Link className="button outline" to="/admin/configuracion">⚙ Configurar restaurante</Link></div><div className="table-scroll"><table><thead><tr><th>Pedido</th><th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead><tbody>{state.orders.map(o => <tr key={o.id}><td><strong>{o.id}</strong></td><td>{o.date}</td><td>{o.items.reduce((sum, i) => sum + i.quantity, 0)} artículos</td><td>{money(o.total)}</td><td><span className={`badge ${o.status === 3 ? 'success' : 'warning'}`}>{o.status === 3 ? 'Entregado' : ['Recibido', 'Preparando', 'Enviado / Listo'][o.status]}</span></td></tr>)}</tbody></table></div></section><p className="demo-note">ℹ️ Selector de periodo preparado visualmente; aún no hay consultas de métricas por fecha.</p></main>;
+}

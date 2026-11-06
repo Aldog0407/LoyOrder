@@ -1,67 +1,109 @@
-# LoyOrder — Base frontend funcional
+# LoyOrder — Frontend oficial base (React + Vite)
 
-Prototipo de navegación del sistema de pedidos LoyOrder, desarrollado en **HTML5 + CSS3 + JavaScript ES Modules**, sin librerías de UI ni servidor obligatorio.
+Base modular para el proyecto de pedidos de restaurante. Incluye flujos de cliente y panel administrativo con datos simulados. **No procesa pagos, no se conecta aún a Loyverse ni a hardware POS.**
 
-## Ejecutar
+## Requisitos
 
-Los módulos ES requieren servir el proyecto sobre HTTP. Desde esta carpeta:
+- Node.js **20.19+ o 22.12+** (requisito de Vite 7; se recomienda la versión LTS vigente compatible).
+- npm.
+
+## Instalación local
 
 ```bash
-python3 dev_server.py
+git checkout develop
+cd frontend
+npm install
+npm run dev
 ```
 
-Abrir `http://localhost:5173/menu`. El servidor incluido ofrece fallback a `index.html` para que funcionen las rutas directas y la recarga. Con Live Server de VS Code se puede abrir la raíz del sitio, pero las rutas directas requieren configurar un fallback. Para GitHub Pages, que no soporta rewrites nativos, adapta las rutas a hash (`#/menu`) o usa una solución de fallback apropiada.
+Abre `http://localhost:5173/`. Los enlaces internos utilizan React Router; Vite resuelve las rutas en desarrollo. Para producción, configura el hosting para regresar `index.html` en rutas SPA como `/admin/configuracion`.
+
+Comprobaciones:
+
+```bash
+npm run lint
+npm test
+npm run build
+npm run preview
+```
+
+La carpeta `dist/` es el artefacto compilado y no debe versionarse. Este ZIP se entrega como una carpeta completa; copia su contenido a la carpeta `frontend/` de tu repositorio, revisa `git status` y confirma sobre `develop`. **No sobrescribas modificaciones existentes sin compararlas.**
 
 ## Estructura
 
 ```text
-loyorder/
-├── index.html        # Entrada semántica
-├── dev_server.py     # Servidor local con fallback de rutas
-├── package.json      # Módulos ES y comprobación de sintaxis
-├── styles.css        # Tokens :root, componentes y breakpoints
+frontend/
+├── index.html
+├── package.json
+├── package-lock.json          # después de instalar
+├── vite.config.js
+├── eslint.config.js
+├── public/                    # estáticos públicos sin importar
 └── src/
-    ├── data.js       # Catálogo y pedidos de ejemplo
-    ├── settings.js   # Reglas, validación y adaptador POS simulado
-    ├── store.js      # Estado y persistencia localStorage
-    └── main.js       # Renderizado, rutas, eventos y flujos
+    ├── main.jsx               # React root y proveedores
+    ├── App.jsx                # rutas y shell
+    ├── assets/                # SVG, imágenes importadas
+    ├── components/            # UI reutilizable
+    │   ├── Navbar.jsx
+    │   ├── MenuCard.jsx
+    │   ├── CartDrawer.jsx
+    │   ├── AdminConfig.jsx
+    │   ├── DishDetail.jsx
+    │   ├── LocationPicker.jsx
+    │   ├── RatingModal.jsx
+    │   └── Modal.jsx
+    ├── views/                 # pantallas vinculadas a rutas
+    │   ├── MenuView.jsx
+    │   ├── TrackingView.jsx
+    │   ├── HistoryView.jsx
+    │   └── AdminDashboard.jsx
+    ├── state/StoreContext.jsx # estado UI, carrito y pedidos
+    ├── services/loyverseAdapter.js
+    ├── config/defaults.js
+    ├── data/menu.js
+    ├── utils/restaurant.js
+    └── styles/styles.css      # tokens :root y componentes
 ```
 
-## Rutas y flujos
+## Rutas
 
 | Ruta | Vista |
 | --- | --- |
-| `/menu` | Catálogo por categorías, disponibilidad, detalle con variante y cantidad |
-| `/seguimiento` | Timeline de pedido y calificación al entregarse |
-| `/historial` | Listado, reordenar con confirmación y acceso a seguimiento |
-| `/admin` | KPI de demostración, periodos y últimos pedidos |
-| `/admin/configuracion` | Horarios, envío, medios de pago y simulador de impresora |
+| `/menu` | Categorías, disponibilidad, modal con variantes |
+| `/seguimiento` | Timeline y calificación |
+| `/historial` | Historial y reordenar |
+| `/admin` | Indicadores y pedidos |
+| `/admin/configuracion` | Horario, envío, pago y caja |
 
-El carrito es lateral en escritorio y pantalla completa en móvil. Incluye modos de entrega, dirección, método de pago, desglose y confirmación. El selector de mapa es **esquemático** con pin arrastrable y campo de dirección; no geocodifica ni consulta mapas reales.
+## Convenciones para el equipo
 
-## Estado de integración
+1. **Vistas** en `views/`: ensamblan componentes, leen la ruta, no definen tokens.
+2. **Componentes** en `components/`: interfaces con `props` claros y sin acceso directo a `localStorage`.
+3. **Estado** en `state/`: Context + reducer sirve para este prototipo. Si el dominio crece, separar `cart`, `auth`, `orders` y `restaurantConfig` en módulos o usar herramientas específicas.
+4. **Integraciones** en `services/`: toda llamada a Loyverse debe pasar por un backend. No colocar API keys en variables `VITE_*`, pues se publican en el bundle del cliente.
+5. **Reglas** en `utils/`: cálculos y validaciones puros con pruebas unitarias cuando se incorpore un test runner.
+6. **Tokens** en `styles/styles.css`: mantener colores, tipografía, radios, estados y sombras. Evitar duplicar estilos por componente.
+7. **Rutas protegidas**: agregar autenticación, roles y autorización del servidor antes de permitir acceso administrativo real. En esta demo `/admin` es pública deliberadamente.
 
-- **Funcional en frontend:** rutas internas, filtros, modal de platillo, controles de cantidad, variantes obligatorias, carrito, selección de domicilio/local, selector de ubicación, confirmación, timeline, simulación de avance, historial, reordenación, calificación, dashboard, notificaciones y persistencia local.
-- **Configuración:** horario con indicador abierto/cerrado (reloj del dispositivo, incluso turnos nocturnos), tarifa base y esquema por radio/kilómetro, activación de métodos de pago y simulación de conexión/prueba de impresora. Los pagos activos y la tarifa base alimentan el checkout. No se calculan kilómetros reales sin geocodificación.
-- **Simulado / no productivo:** autenticación, disponibilidad de inventario, cobro con tarjeta, envío de correos, persistencia multiusuario, métricas de ventas, ubicación geográfica real y actualizaciones de estado desde cocina. **No se realiza ningún cobro real.**
-- **Loyverse/POS:** `src/settings.js` contiene equivalencias conceptuales `CASH`, `CARD`, `OTHER`, no identificadores de métodos del comercio. Sin credenciales, servidor, conexión Loyverse o impresora física. La respuesta de impresión es una promesa simulada. No se afirma conectividad en tiempo real con hardware.
-- **Integración pendiente:** API REST, login y autorización de roles, base de datos, proveedor de mapas/geocodificación, pagos tokenizados en backend, estados emitidos por cocina y notificaciones.
+## Comportamiento de demostración
 
-## Tokens
+- Carrito, métodos de entrega, localización esquemática, pagos simulados, órdenes y configuración persistidos en `localStorage`.
+- El horario abierto/cerrado usa la **zona horaria del navegador**; en producción debe evaluarse usando la zona horaria del restaurante.
+- El costo por km tiene una función pura preparada, pero sin distancia real solo cobra la tarifa base.
+- Las etiquetas `CASH`, `CARD` y `OTHER` son referencias conceptuales, **no** IDs de pago oficiales de un comercio Loyverse.
+- La impresora se conecta y responde **solo en simulación**. El estado no corresponde a hardware real.
+- El cambio de estado de la impresora se ensaya en el formulario; se persiste con «Guardar configuración» (y se reinicia como desconectada al recargar la app).
+- El dashboard usa datos demo; el selector de periodo no ejecuta consultas temporales.
+- Se incluyen cantidades, variantes requeridas, disponibilidad, confirmación de compra, seguimiento y reordenación. No hay correo, procesador de pagos o sincronización POS.
 
-Los colores, radios, sombras y fuente están en `:root` de `styles.css`, conforme a la guía proporcionada. Breakpoints principales: 1000px, 760px y 390px.
+## Próximas iteraciones recomendadas
 
-## Pruebas manuales recomendadas
+1. `src/services/apiClient.js`: cliente HTTP centralizado, errores y manejo de sesión.
+2. `src/features/auth/`: roles, login y `ProtectedRoute`, con verificación en API.
+3. `src/features/orders/`: estado de órdenes desde servidor y actualizaciones en tiempo real.
+4. `src/features/pos/`: sincronización Loyverse server-side, catálogo y métodos por tienda.
+5. Pruebas unitarias con Vitest y pruebas E2E con Playwright (carrito, checkout, reordenación, permisos).
 
-1. Filtrar categorías, abrir un platillo y verificar que se exige una variante.
-2. Agregar varias unidades, editar y eliminar del carrito.
-3. Seleccionar domicilio, ajustar pin, introducir dirección y confirmar.
-4. Realizar pedido de prueba y avanzar su estado hasta Entregado.
-5. Calificar el pedido, visitar historial y reordenar.
-6. Verificar `/admin` y los periodos Hoy / Semana / Mes.
-7. Probar anchos 375px, 768px y 1440px, y navegación con botón Atrás.
-8. En `/admin/configuracion`, guardar horarios nocturnos, validar valores negativos, deshabilitar métodos, alternar tarifa y probar la conexión e impresión simulada.
+## Nota sobre despliegue
 
-## Nota de producción
-
-Este entregable corresponde únicamente al **proyecto base funcional del frontend**. La interfaz no constituye un sistema de pedidos operativo y los datos del navegador pueden borrarse en cualquier momento.
+Vite genera una SPA. En el hosting, las solicitudes a rutas cliente deben redirigirse a `index.html`. Esto no reemplaza autorización del backend. Para una API futura, usa variables de entorno de servidor y un proxy apropiado, nunca credenciales secretas expuestas al navegador.
