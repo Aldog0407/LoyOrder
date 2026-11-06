@@ -1,0 +1,10 @@
+{
+  "name": "loyorder-frontend",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototipo frontend de gestión de pedidos LoyOrder",
+  "scripts": {
+    "check": "node --check src/main.js && node --check src/settings.js && node --check src/store.js"
+  }
+}

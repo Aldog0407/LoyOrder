@@ -7,7 +7,7 @@ from pathlib import Path
 class SPAHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         route = self.path.split('?', 1)[0].split('#', 1)[0]
-        if route in ('/menu', '/seguimiento', '/historial', '/admin'):
+        if route in ('/menu', '/seguimiento', '/historial', '/admin', '/admin/configuracion'):
             self.path = '/index.html'
         return super().do_GET()
 

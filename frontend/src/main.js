@@ -1,16 +1,20 @@
 import { categories, dishes, findDish, money } from './data.js';
 import { state, update, save } from './store.js';
+import { renderSettings, validateSettings, paymentCatalog, shippingCost, isRestaurantOpen, simulatePrint } from './settings.js';
 
 const app = document.querySelector('#app');
 const overlays = document.querySelector('#overlay-root');
 const toastRoot = document.querySelector('#toast-root');
-const paths = ['/menu', '/seguimiento', '/historial', '/admin'];
+const paths = ['/menu', '/seguimiento', '/historial', '/admin', '/admin/configuracion'];
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const icon = name => ({ cart: '🛒', clock: '◷', history: '▤', grid: '▦' })[name] || '•';
 const activeOrder = () => state.orders.find(o => o.id === state.activeOrderId);
 const itemCount = () => state.cart.reduce((s, i) => s + i.quantity, 0);
 const subtotal = () => state.cart.reduce((s, i) => s + i.price * i.quantity, 0);
-const deliveryFee = () => state.delivery === 'domicilio' ? 35 : 0;
+const deliveryFee = () => state.delivery === 'domicilio' ? shippingCost(state.restaurantSettings) : 0;
+const paymentName = key => ({ efectivo: 'Efectivo', tarjeta: 'Tarjeta', digital: 'Pago digital' })[key] || key;
+const enabledPayments = () => paymentCatalog.filter(p => state.restaurantSettings.payments[p.key]);
+const paymentKey = key => ({ cash: 'efectivo', card: 'tarjeta', digital: 'digital' })[key];
 let path = paths.includes(location.pathname) ? location.pathname : '/menu';
 let detailQuantity = 1;
 let detailVariant = '';
@@ -36,7 +40,7 @@ function toast(message, kind = 'success') {
 }
 
 function header() {
-  const links = [['/menu', 'Explorar menú'], ['/seguimiento', 'Mi pedido'], ['/historial', 'Historial']];
+  const links = path.startsWith('/admin') ? [['/admin', 'Dashboard'], ['/admin/configuracion', 'Configuración']] : [['/menu', 'Explorar menú'], ['/seguimiento', 'Mi pedido'], ['/historial', 'Historial']];
   return `<header class="site-header"><div class="header-inner"><a class="logo" href="/menu" data-link><span class="logo-mark">✳</span>Loy<span>Order</span></a>
     <nav class="main-nav ${state.mobileMenu ? 'open' : ''}" aria-label="Navegación principal">${links.map(([url, label]) => `<a href="${url}" data-link class="${path === url ? 'active' : ''}">${label}</a>`).join('')}</nav>
     <div class="header-actions"><button class="role-switch ${path === '/admin' ? 'selected' : ''}" data-route="${path === '/admin' ? '/menu' : '/admin'}">${path === '/admin' ? '← Vista cliente' : 'Vista admin ↗'}</button><button class="cart-top" data-action="cart" aria-label="Abrir carrito">🛒 <span>Carrito</span><b>${itemCount()}</b></button><button class="menu-toggle" data-action="mobile-menu" aria-label="Abrir menú">☰</button></div></div></header>`;
@@ -107,12 +111,64 @@ function reorderModal(id) {
 }
 
 function render() {
-  document.title = `${({ '/menu': 'Menú', '/seguimiento': 'Seguimiento', '/historial': 'Historial', '/admin': 'Dashboard' })[path]} · LoyOrder`;
-  app.innerHTML = `${header()}${({ '/menu': menu, '/seguimiento': tracking, '/historial': historyPage, '/admin': admin })[path]()}<footer class="site-footer"><div class="container"><span class="logo"><span class="logo-mark">✳</span>Loy<span>Order</span></span><p>Hecho con sabor y mucho cariño. · Demo frontend © 2026</p></div></footer><button class="cart-fab" data-action="cart" aria-label="Abrir carrito">🛒${itemCount() ? `<b>${itemCount()}</b>` : ''}</button>`;
+  document.title = `${({ '/menu': 'Menú', '/seguimiento': 'Seguimiento', '/historial': 'Historial', '/admin': 'Dashboard', '/admin/configuracion': 'Configuración' })[path]} · LoyOrder`;
+  app.innerHTML = `${header()}${({ '/menu': menu, '/seguimiento': tracking, '/historial': historyPage, '/admin': admin, '/admin/configuracion': () => renderSettings(state.restaurantSettings) })[path]()}<footer class="site-footer"><div class="container"><span class="logo"><span class="logo-mark">✳</span>Loy<span>Order</span></span><p>Hecho con sabor y mucho cariño. · Demo frontend © 2026</p></div></footer>${path.startsWith('/admin') ? '' : `<button class="cart-fab" data-action="cart" aria-label="Abrir carrito">🛒${itemCount() ? `<b>${itemCount()}</b>` : ''}</button>`}`;
+  if (path === '/admin/configuracion') {
+    const switcher = app.querySelector('.role-switch');
+    if (switcher) { switcher.dataset.route = '/menu'; switcher.textContent = '← Vista cliente'; }
+  }
   overlays.innerHTML = state.drawer ? cartDrawer() : state.modal?.type === 'detail' ? detailModal(state.modal.id) : state.modal?.type === 'map' ? mapModal() : state.modal?.type === 'confirm' ? confirmModal() : state.modal?.type === 'rate' ? rateModal() : state.modal?.type === 'reorder' ? reorderModal(state.modal.id) : '';
+  adaptCheckoutToSettings();
   document.body.classList.toggle('overlay-open', !!state.drawer || !!state.modal);
   if (state.modal?.type === 'map') setupMap();
 }
+
+/** Actualiza el checkout existente sin duplicar su estructura de componentes. */
+function adaptCheckoutToSettings() {
+  // El último bloque de opciones del carrito corresponde a los medios de pago.
+  if (state.drawer && state.cart.length) {
+    const grids = overlays.querySelectorAll('.drawer-body .choice-grid');
+    const grid = grids[grids.length - 1];
+    if (grid) grid.innerHTML = enabledPayments().map(p => {
+      const value = paymentKey(p.key);
+      return `<label class="choice ${state.payment === value ? 'chosen' : ''}"><input type="radio" name="payment" value="${value}" ${state.payment === value ? 'checked' : ''}>${p.emoji} ${p.label}</label>`;
+    }).join('');
+    const rows = overlays.querySelectorAll('.drawer-footer > div');
+    if (rows[1]) rows[1].querySelector('b').textContent = deliveryFee() ? money(deliveryFee()) : 'Gratis';
+    if (rows[2]) rows[2].querySelector('strong').textContent = money(subtotal() + deliveryFee());
+  }
+  const total = overlays.querySelector('.confirm-total strong');
+  if (total) total.textContent = money(subtotal() + deliveryFee());
+  const desc = overlays.querySelector('.confirm-description');
+  if (desc) desc.textContent = `${state.delivery === 'domicilio' ? 'Entrega a domicilio' : 'Recoger en local'} · ${paymentName(state.payment)} (simulado)`;
+}
+
+function refreshRestaurantStatus() {
+  const badge = document.querySelector('[data-open-status]');
+  if (!badge) return;
+  const open = isRestaurantOpen(state.restaurantSettings);
+  badge.textContent = open ? '● Abierto ahora' : '● Cerrado ahora';
+  badge.className = `badge ${open ? 'success' : 'error'}`;
+}
+setInterval(refreshRestaurantStatus, 30000);
+
+document.addEventListener('submit', event => {
+  if (event.target.id !== 'settings-form') return;
+  event.preventDefault();
+  const form = event.target;
+  const values = new FormData(form);
+  const next = {
+    ...state.restaurantSettings,
+    open: values.get('open'), close: values.get('close'),
+    delivery: { mode: values.get('shippingMode'), base: Number(values.get('base')), radiusKm: Number(values.get('radiusKm')), perKm: Number(values.get('perKm')) },
+    payments: Object.fromEntries(paymentCatalog.map(p => [p.key, values.has(`payment-${p.key}`)])),
+  };
+  const error = validateSettings(next);
+  if (error) return toast(error, 'error');
+  update({ restaurantSettings: next });
+  if (!enabledPayments().some(p => paymentKey(p.key) === state.payment)) update({ payment: paymentKey(enabledPayments()[0].key) });
+  render(); toast('Configuración guardada correctamente');
+});
 
 function setupMap() {
   const map = document.querySelector('#demo-map');
@@ -162,6 +218,22 @@ document.addEventListener('click', event => {
   if (action === 'cart') { update({ drawer: true, modal: null }); render(); }
   if (action === 'close') { update({ drawer: false, modal: null }); render(); }
   if (action === 'mobile-menu') { update({ mobileMenu: !state.mobileMenu }); render(); }
+  if (action === 'printer-toggle') {
+    state.restaurantSettings.printer.connected = !state.restaurantSettings.printer.connected;
+    save(); render();
+    toast(state.restaurantSettings.printer.connected ? 'Conexión simulada activada' : 'Impresora simulada desconectada');
+  }
+  if (action === 'printer-test') {
+    if (!state.restaurantSettings.printer.connected) return toast('La impresora está desconectada.', 'error');
+    el.disabled = true; el.textContent = 'Imprimiendo…';
+    simulatePrint(state.restaurantSettings).then(result => {
+      const output = document.querySelector('#ticket-result');
+      if (output) output.textContent = `✓ ${result.message} · ${result.ticket}`;
+      toast('Prueba simulada completada');
+    }).catch(error => toast(error.message, 'error')).finally(() => {
+      if (el.isConnected) { el.disabled = false; el.textContent = 'Imprimir ticket de prueba'; }
+    });
+  }
   if (action === 'explore') document.querySelector('#platillos')?.scrollIntoView({ behavior: 'smooth' });
   if (action === 'map') { mapDraft = { ...state.location }; update({ drawer: false, modal: { type: 'map' } }); render(); }
   if (action === 'save-map') { const address = document.querySelector('#address').value.trim(); if (address.length < 8) return toast('Ingresa una dirección más completa.', 'error'); update({ address, location: { ...mapDraft }, modal: null, drawer: true }); render(); toast('Ubicación guardada'); }
@@ -170,7 +242,7 @@ document.addEventListener('click', event => {
   if (action === 'place-order') {
     if (!state.cart.length) return;
     const id = `LY-${Math.floor(Date.now() % 900000 + 100000)}`;
-    const order = { id, date: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }), items: state.cart.map(i => ({ ...i })), total: subtotal() + (state.delivery === 'domicilio' ? 35 : 0), delivery: state.delivery || 'local', payment: state.payment || 'efectivo', status: 0, rated: false };
+    const order = { id, date: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }), items: state.cart.map(i => ({ ...i })), total: subtotal() + deliveryFee(), delivery: state.delivery || 'local', payment: state.payment || 'efectivo', status: 0, rated: false };
     state.orders.unshift(order); state.cart = []; update({ activeOrderId: id, modal: null }); navigate('/seguimiento'); toast(`¡Pedido ${id} recibido!`); return;
   }
   if (action === 'advance') { const order = activeOrder(); if (order && order.status < 3) { order.status++; save(); render(); toast('Estado del pedido actualizado'); } }
@@ -178,6 +250,11 @@ document.addEventListener('click', event => {
 });
 
 document.addEventListener('change', event => {
+  if (event.target.name === 'shippingMode') {
+    const distance = document.querySelector('.distance-fields');
+    if (distance) distance.hidden = event.target.value !== 'distance';
+    return;
+  }
   if (event.target.name === 'variant') { detailVariant = event.target.value; return; }
   if (event.target.name === 'delivery') { update({ delivery: event.target.value }); render(); }
   if (event.target.name === 'payment') { update({ payment: event.target.value }); render(); }
