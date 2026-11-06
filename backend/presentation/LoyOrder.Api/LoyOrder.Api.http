@@ -1,0 +1,8 @@
+@base = http://localhost:5080
+GET {{base}}/health/live
+###
+GET {{base}}/health/ready
+###
+GET {{base}}/api/v1/categorias?idRestaurante=1&pagina=1&tamano=20
+###
+GET {{base}}/api/v1/categorias?idRestaurante=0

@@ -104,6 +104,11 @@ frontend/
 4. `src/features/pos/`: sincronización Loyverse server-side, catálogo y métodos por tienda.
 5. Pruebas unitarias con Vitest y pruebas E2E con Playwright (carrito, checkout, reordenación, permisos).
 
-## Nota sobre despliegue
+## Nota de producción
 
-Vite genera una SPA. En el hosting, las solicitudes a rutas cliente deben redirigirse a `index.html`. Esto no reemplaza autorización del backend. Para una API futura, usa variables de entorno de servidor y un proxy apropiado, nunca credenciales secretas expuestas al navegador.
+Este entregable corresponde únicamente al **proyecto base funcional del frontend**. La interfaz no constituye un sistema de pedidos operativo y los datos del navegador pueden borrarse en cualquier momento.
+
+
+## Acceso 7.2.1
+
+Se agregaron /login, /registro y /operacion. Consultar `../docs/ACTIVIDAD_7_2_1.md`. El acceso ya usa la API; las funcionalidades de pedidos y los datos de negocio continúan simulados. La API debe ejecutarse en localhost:5080 y tener conexión a PostgreSQL para registrar o autenticar cuentas reales.
