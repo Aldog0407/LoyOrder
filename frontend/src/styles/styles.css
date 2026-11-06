@@ -45,3 +45,19 @@
 .cart-empty span{display:block}
 .settings-payment input{cursor:pointer}
 .site-header a:focus-visible,.button:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+
+/* Formulario React de autenticación: reutiliza el estilo de acceso 7.2.1. */
+.auth-card fieldset {display:grid;gap:16px;min-width:0;border:0;padding:0;margin:0;}
+.auth-card .button {box-sizing:border-box;}
+
+.auth-wrap{display:flex;justify-content:center;padding:48px 16px;min-height:75vh;}
+.auth-card{width:100%;max-width:460px;padding:32px;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 8px 24px #00000008;}
+.auth-card h1{font-size:2rem;margin:12px 0;}
+.auth-card form{display:grid;gap:16px;margin-top:24px;}
+.auth-card label{display:grid;gap:8px;font-weight:600;}
+.auth-card input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #c9c0b3;border-radius:10px;font:inherit;}
+.auth-card input:focus{outline:2px solid var(--primary);outline-offset:2px;}
+.auth-card small{line-height:1.5;}
+#auth-error{color:#a31c14;margin:0;}
+.auth-card button:disabled{opacity:.6;cursor:wait;}
+@media(max-width:390px){.auth-wrap{padding:28px 12px;}.auth-card{padding:24px 20px;}}

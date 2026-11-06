@@ -1,5 +1,5 @@
 // Token solo en memoria: recargar la página requiere iniciar sesión otra vez.
-const base = 'http://localhost:5080/api/v1';
+const base = (import.meta.env?.VITE_API_URL || 'http://localhost:5080/api/v1').replace(/\/$/, '');
 let token = null;
 let usuario = null;
 let temporizador;

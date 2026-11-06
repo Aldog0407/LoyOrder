@@ -16,6 +16,7 @@ function initialize() {
 
 function reducer(state, action) {
   switch (action.type) {
+    case 'CLEAR_SESSION_DATA': return { ...state, cart: [], orders: [], activeOrderId: null, address: '', pin: { x: 50, y: 50 }, delivery: 'local', drawerOpen: false, toast: null };
     case 'OPEN_CART': return { ...state, drawerOpen: true };
     case 'CLOSE_CART': return { ...state, drawerOpen: false };
     case 'NOTIFY': return { ...state, toast: { id: Date.now(), message: action.message, error: !!action.error } };

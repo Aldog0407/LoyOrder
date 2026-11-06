@@ -75,8 +75,8 @@ $env:ConnectionStrings__LoyOrder='Host=localhost;Port=5432;Database=loyorder;Use
 dotnet run --project backend/presentation/LoyOrder.Api
 ```
 
-En otra terminal: `python frontend/dev_server.py` y abrir http://localhost:5173/login.
-Si el servidor frontend estaba abierto antes de actualizar, detenerlo con Ctrl+C y reiniciarlo para que reconozca las nuevas rutas. Recargar el navegador con Ctrl+F5.
+En otra terminal, desde la raíz del repositorio: `cd frontend`, ejecutar `npm ci` la primera vez y después `npm run dev`. Abrir http://localhost:5173/login. El frontend ahora usa React y Vite; el servidor Python anterior fue retirado por la migración.
+Si Vite estaba abierto antes de modificar su configuración, detenerlo con Ctrl+C y reiniciarlo. Recargar el navegador con Ctrl+F5.
 Sin PostgreSQL, los formularios se muestran pero registrar/iniciar debe responder 503; no se inventan cuentas o accesos exitosos. Coordinar la conexión de pruebas con Brayan. No publicar contraseñas ni conexiones reales.
 
 Para repetir el recorrido de navegador, registrar un cliente desde /registro, iniciar sesión desde /login, ver el menú y cerrar sesión. Usar cuentas locales de prueba para comprobar los roles del personal. No convertir usuarios reales en empleados como parte de una demostración. La gestión de personal y recuperación de contraseña corresponden a otras actividades.
@@ -94,3 +94,12 @@ El catálogo, pedidos, historial y métricas del frontend siguen simulados y no 
 - Matriz 4.2 y CU-01 del equipo, aportados por Aldo.
 - https://learn.microsoft.com/aspnet/core/security/authentication/configure-jwt-bearer-authentication?view=aspnetcore-10.0
 - https://learn.microsoft.com/aspnet/core/security/authorization/roles?view=aspnetcore-10.0
+
+
+## Adaptación posterior a React
+
+Después de la migración del frontend del equipo (base ea5061e), se reimplementaron los formularios como componentes React, se incorporó `AuthProvider` para compartir la sesión y se protegieron las rutas según la matriz 4.2. Se reutilizaron el cliente HTTP y la política de contraseñas. El backend, los endpoints, el SQL y las cuentas existentes no se modificaron.
+
+Se conservaron el menú, carrito, dashboard y configuración del restaurante de Madeline. Se eliminó la navegación libre a administrador. Al cambiar de usuario se limpian los datos de pedidos y dirección de demostración, conservando los ajustes del restaurante.
+
+Validación de esta adaptación: compilación de producción, análisis ESLint y 11 pruebas Node aprobadas (incluyen las 3 previas de configuración). Revisión de navegador contra la API real de ASP.NET Core con repositorios temporales falsos: registro, rechazo de contraseña sin símbolo, login de cliente/operador/administrador, cierre de sesión, historial limpio y configuración administrativa conservada. No se usaron ni modificaron cuentas de PostgreSQL en esa revisión. Queda por repetir el recorrido React con la base real del equipo; los resultados reales de la sección anterior corresponden a la interfaz previa.

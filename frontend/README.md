@@ -10,9 +10,8 @@ Base modular para el proyecto de pedidos de restaurante. Incluye flujos de clien
 ## Instalación local
 
 ```bash
-git checkout develop
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -27,7 +26,7 @@ npm run build
 npm run preview
 ```
 
-La carpeta `dist/` es el artefacto compilado y no debe versionarse. Este ZIP se entrega como una carpeta completa; copia su contenido a la carpeta `frontend/` de tu repositorio, revisa `git status` y confirma sobre `develop`. **No sobrescribas modificaciones existentes sin compararlas.**
+La carpeta `dist/` es el artefacto compilado y no debe versionarse. El equipo trabaja directamente en `main`. Revisar `git diff` antes de confirmar y combinar cambios recientes del equipo antes del push.
 
 ## Estructura
 
@@ -69,6 +68,9 @@ frontend/
 
 | Ruta | Vista |
 | --- | --- |
+| `/login` | Inicio de sesión de los tres roles |
+| `/registro` | Registro público de clientes |
+| `/operacion` | Acceso confirmado del operador |
 | `/menu` | Categorías, disponibilidad, modal con variantes |
 | `/seguimiento` | Timeline y calificación |
 | `/historial` | Historial y reordenar |
@@ -83,7 +85,7 @@ frontend/
 4. **Integraciones** en `services/`: toda llamada a Loyverse debe pasar por un backend. No colocar API keys en variables `VITE_*`, pues se publican en el bundle del cliente.
 5. **Reglas** en `utils/`: cálculos y validaciones puros con pruebas unitarias cuando se incorpore un test runner.
 6. **Tokens** en `styles/styles.css`: mantener colores, tipografía, radios, estados y sombras. Evitar duplicar estilos por componente.
-7. **Rutas protegidas**: agregar autenticación, roles y autorización del servidor antes de permitir acceso administrativo real. En esta demo `/admin` es pública deliberadamente.
+7. **Rutas protegidas**: `ProtectedRoute` restringe cliente, operador y administrador, sin herencia de roles. `/admin` y `/admin/configuracion` requieren administrador. La API aplica la autorización de sus endpoints; una restricción React no sustituye la comprobación del servidor.
 
 ## Comportamiento de demostración
 
@@ -98,11 +100,11 @@ frontend/
 
 ## Próximas iteraciones recomendadas
 
-1. `src/services/apiClient.js`: cliente HTTP centralizado, errores y manejo de sesión.
-2. `src/features/auth/`: roles, login y `ProtectedRoute`, con verificación en API.
+1. Extender el cliente HTTP existente en `src/auth.js` cuando se integren nuevos recursos de la API.
+2. La autenticación ya está integrada mediante `AuthProvider`, `AccessView` y `ProtectedRoute`; conservar su conexión a la API al añadir funciones.
 3. `src/features/orders/`: estado de órdenes desde servidor y actualizaciones en tiempo real.
 4. `src/features/pos/`: sincronización Loyverse server-side, catálogo y métodos por tienda.
-5. Pruebas unitarias con Vitest y pruebas E2E con Playwright (carrito, checkout, reordenación, permisos).
+5. Ampliar las pruebas existentes (`npm test`) al integrar los recursos de pedidos y sincronización.
 
 ## Nota de producción
 
@@ -111,4 +113,22 @@ Este entregable corresponde únicamente al **proyecto base funcional del fronten
 
 ## Acceso 7.2.1
 
-Se agregaron /login, /registro y /operacion. Consultar `../docs/ACTIVIDAD_7_2_1.md`. El acceso ya usa la API; las funcionalidades de pedidos y los datos de negocio continúan simulados. La API debe ejecutarse en localhost:5080 y tener conexión a PostgreSQL para registrar o autenticar cuentas reales.
+Se adaptaron a React /login, /registro y /operacion. Consultar `../docs/ACTIVIDAD_7_2_1.md`. El acceso ya usa la API; las funcionalidades de pedidos y los datos de negocio continúan simulados. La API debe ejecutarse en localhost:5080 y tener conexión a PostgreSQL para registrar o autenticar cuentas reales.
+
+
+## Autenticación integrada a React
+
+- `src/state/AuthProvider.jsx` comparte la identidad de la sesión y recibe su caducidad.
+- `src/views/AccessView.jsx` contiene registro y login, con errores de API y validación de contraseña.
+- `src/components/ProtectedRoute.jsx` y `src/utils/auth-routing.js` aplican las rutas por rol.
+- `src/auth.js` reutiliza los endpoints de la API ya existentes y mantiene el token solo en memoria.
+- `Navbar` incorpora logout y enlaces por rol; no permite cambiar libremente a administrador.
+- El carrito, historial y dirección de demostración se limpian al iniciar/cerrar/caducar una sesión; la configuración local del restaurante se conserva. Esto no sustituye la persistencia futura por cliente en la API.
+
+Para usar PostgreSQL real, encender primero la API en `http://localhost:5080` con la conexión configurada según `../backend/README.md`. Después, desde `frontend`, ejecutar `npm ci` (primera vez) y `npm run dev`. Abrir `http://localhost:5173/login`. Ya no se usa `python frontend/dev_server.py`.
+
+Opcional: copiar `.env.example` a `.env.local` para configurar `VITE_API_URL` antes de arrancar Vite. La URL no es secreta; nunca colocar contraseñas, claves de firma o tokens en variables `VITE_*`. El valor predeterminado es `http://localhost:5080/api/v1`.
+
+Al recargar la página hay que iniciar sesión nuevamente porque el token no se persiste. Las cuentas reales existentes no cambian. Dashboard, pedidos, impresión y ajustes siguen con el alcance de demostración del equipo.
+
+Comprobado en la adaptación: `npm run build`, `npm run lint` y 11 pruebas `npm test` (8 de acceso y 3 previas de restaurante). Se comprobó además en navegador contra una instancia temporal de la misma API con repositorios falsos: registro, contraseña sin símbolo rechazada, login de los tres roles, logout, historial limpio y acceso administrativo/configuración. Falta repetir la interfaz React con las cuentas reales de la base local de Aldo; la integración anterior con PostgreSQL ya se había verificado antes de la migración.
