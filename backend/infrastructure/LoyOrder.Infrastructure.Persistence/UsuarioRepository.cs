@@ -2,9 +2,14 @@ using LoyOrder.Application;
 using LoyOrder.Domain;
 using Npgsql;
 namespace LoyOrder.Infrastructure.Persistence;
-public sealed class UsuarioRepository(NpgsqlDataSource source) : IUsuarioRepository
+public sealed class UsuarioRepository(NpgsqlDataSource source, ConfiguracionDesafios? correo = null) : IUsuarioRepository
 {
-    private const string Campos = "SELECT u.id_usuario,u.nombre,u.correo,u.contrasena_hash,u.activo,CASE WHEN e.id_empleado IS NOT NULL THEN e.rol WHEN c.id_cliente IS NOT NULL THEN 'CLIENTE' ELSE '' END FROM usuario u LEFT JOIN empleado e ON e.id_empleado=u.id_usuario LEFT JOIN cliente c ON c.id_cliente=u.id_usuario ";
+    private string Campos => """
+        SELECT u.id_usuario,u.nombre,u.correo,u.contrasena_hash,u.activo,
+            CASE WHEN e.id_empleado IS NOT NULL THEN e.rol WHEN c.id_cliente IS NOT NULL THEN 'CLIENTE' ELSE '' END
+        """ + (correo is null ? "" : ", u.correo_verificado_en, u.version_sesion") + """
+         FROM usuario u LEFT JOIN empleado e ON e.id_empleado=u.id_usuario LEFT JOIN cliente c ON c.id_cliente=u.id_usuario
+        """ + " ";
     public Task<Usuario?> PorCorreoAsync(string correo, CancellationToken ct) => Buscar(Campos+"WHERE lower(trim(u.correo))=$1", correo,ct);
     public Task<Usuario?> PorIdAsync(long id, CancellationToken ct) => Buscar(Campos+"WHERE u.id_usuario=$1", id,ct);
     private async Task<Usuario?> Buscar(string sql, object valor, CancellationToken ct)
@@ -15,13 +20,20 @@ public sealed class UsuarioRepository(NpgsqlDataSource source) : IUsuarioReposit
             await using var reader=await cmd.ExecuteReaderAsync(ct);
             if(!await reader.ReadAsync(ct)) return null;
             var usuario=new Usuario(reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetString(3),reader.GetBoolean(4),reader.GetString(5));
+            if (correo is not null)
+                usuario = usuario with
+                {
+                    CorreoVerificadoEn = reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6),
+                    VersionSesion = reader.GetInt32(7)
+                };
             if(await reader.ReadAsync(ct)) throw new DependenciaNoDisponibleException(); // Correos heredados ambiguos.
             return usuario;
         }
         catch(NpgsqlException){throw new DependenciaNoDisponibleException();}
         catch(TimeoutException){throw new DependenciaNoDisponibleException();}
     }
-    public async Task<Usuario> RegistrarClienteAsync(string nombre,string correo,string hash,string? telefono,CancellationToken ct)
+    public async Task<Usuario> RegistrarClienteAsync(string nombre,string correo,string hash,string? telefono,CancellationToken ct,
+        NuevoDesafio? desafio = null)
     {
         try
         {
@@ -37,7 +49,10 @@ public sealed class UsuarioRepository(NpgsqlDataSource source) : IUsuarioReposit
             var id=(long)(await cmd.ExecuteScalarAsync(ct))!;
             await using var cliente=new NpgsqlCommand("INSERT INTO cliente(id_cliente,telefono) VALUES($1,$2)",connection,transaction);
             cliente.Parameters.AddWithValue(id);cliente.Parameters.Add(new NpgsqlParameter { NpgsqlDbType=NpgsqlTypes.NpgsqlDbType.Varchar,Value=(object?)telefono??DBNull.Value });
-            await cliente.ExecuteNonQueryAsync(ct);await transaction.CommitAsync(ct);
+            await cliente.ExecuteNonQueryAsync(ct);
+            if (desafio is not null)
+                await DesafioCorreoRepository.InsertarAsync(transaction, id, correo, desafio, ct);
+            await transaction.CommitAsync(ct);
             return new(id,nombre,correo,hash,true,Roles.Cliente);
         }
         catch(PostgresException e) when(e.SqlState=="23505"){throw new CorreoDuplicadoException();}

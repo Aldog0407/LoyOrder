@@ -141,7 +141,7 @@ sealed class UsuariosPrueba : IUsuarioRepository
         var u=usuarios.Values.FirstOrDefault(u=>u.IdUsuario==id);
         return Task.FromResult(u?.Correo=="cliente@prueba.test"&&InactivarCliente ? u with{Activo=false} :u);
     }
-    public Task<Usuario> RegistrarClienteAsync(string n,string c,string h,string? t,CancellationToken ct)
+    public Task<Usuario> RegistrarClienteAsync(string n,string c,string h,string? t,CancellationToken ct, NuevoDesafio? desafio = null)
     {
         if(usuarios.ContainsKey(c))throw new CorreoDuplicadoException();
         var u=new Usuario(usuarios.Count+1,n,c,h,true,Roles.Cliente);usuarios[c]=u;return Task.FromResult(u);
@@ -158,4 +158,3 @@ sealed class Repositorio : ICategoriaRepository
         return Task.FromResult<IReadOnlyList<Categoria>>(restaurante==1 ? [new(1,1,null,"Bebidas",true)] : []);
     }
 }
-

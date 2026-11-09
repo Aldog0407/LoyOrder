@@ -12,17 +12,32 @@ public sealed record Registro([Required,StringLength(100)]string Nombre,[Require
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record Inicio([Required,EmailAddress,StringLength(150)]string Correo,[Required,StringLength(128)]string Contrasena);
 [ApiController,Route("api/v1/auth")]
-public sealed class AccesoController(Acceso acceso,Tokens tokens,Sesiones sesiones,IUsuarioRepository usuarios) : ControllerBase
+public sealed class AccesoController(Acceso acceso,Tokens tokens,Sesiones sesiones,IUsuarioRepository usuarios,
+    CorreoAcceso? correo = null) : ControllerBase
 {
     [HttpPost("registro"),AllowAnonymous,EnableRateLimiting("acceso")]
     public async Task<IActionResult> Registrar(Registro datos,CancellationToken ct)
     {
+        if (correo is not null)
+        {
+            var (pendiente, idDesafio) = await correo.RegistrarAsync(datos.Nombre, datos.Correo, datos.Contrasena, datos.Telefono, ct);
+            return StatusCode(201, new { pendiente.IdUsuario, pendiente.Nombre, pendiente.Correo, pendiente.Rol, correoVerificado = false, idDesafio });
+        }
         var usuario=await acceso.RegistrarAsync(datos.Nombre,datos.Correo,datos.Contrasena,datos.Telefono,ct);
         return StatusCode(201,new { usuario.IdUsuario,usuario.Nombre,usuario.Correo,usuario.Rol });
     }
     [HttpPost("login"),AllowAnonymous,EnableRateLimiting("acceso")]
     public async Task<IActionResult> Iniciar(Inicio datos,CancellationToken ct)
-        =>Ok(tokens.Emitir(await acceso.IniciarAsync(datos.Correo,datos.Contrasena,ct)));
+    {
+        var usuario = await acceso.IniciarAsync(datos.Correo, datos.Contrasena, ct);
+        if (correo is not null && usuario.CorreoVerificadoEn is null)
+        {
+            var idDesafio = await correo.VerificarAsync(usuario, ct);
+            return Problem(statusCode: 403, title: "Verifica tu correo para iniciar sesión.",
+                extensions: new Dictionary<string, object?> { ["codigo"] = "CORREO_NO_VERIFICADO", ["idDesafio"] = idDesafio });
+        }
+        return Ok(tokens.Emitir(usuario));
+    }
     [HttpGet("me"),Authorize]
     public async Task<IActionResult> Actual(CancellationToken ct)
     {

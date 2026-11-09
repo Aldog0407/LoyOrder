@@ -62,3 +62,66 @@ git push origin main
 ```
 
 Revisar `git diff --cached` antes de confirmar. Si hay conflictos, resolverlos antes de continuar; no sobrescribir el trabajo del equipo.
+## Autenticación por correo (7.2.2)
+
+La verificación por código y la recuperación por enlace se habilitan con
+`CorreoAutenticacion__Habilitado=true`. El valor predeterminado es desactivado
+hasta integrar las pantallas de React y la migración de Gabriel.
+
+### Configuración del servidor
+
+| Variable | Valor |
+| --- | --- |
+| `CorreoAutenticacion__Habilitado` | `true` para activar el flujo. |
+| `CorreoAutenticacion__UrlFrontend` | Origen de React, por ejemplo `http://localhost:5173` en Development. En producción usar HTTPS. El backend añade `/restablecer-contrasena`. |
+| `CorreoAutenticacion__ClaveCodigo` | Clave independiente en Base64, de al menos 32 bytes aleatorios, para proteger los códigos en PostgreSQL. |
+| `CorreoAutenticacion__Smtp__Host` | Servidor SMTP del proveedor. |
+| `CorreoAutenticacion__Smtp__Puerto` | Puerto del proveedor, `587` por defecto. |
+| `CorreoAutenticacion__Smtp__Seguridad` | `StartTls` o `SslOnConnect`. `None` solo se admite en Development con SMTP de loopback y sin credenciales. |
+| `CorreoAutenticacion__Smtp__Remitente` | Dirección autorizada para enviar correo. |
+| `CorreoAutenticacion__Smtp__Usuario`, `CorreoAutenticacion__Smtp__Contrasena` | Credenciales del proveedor si las requiere. Se configuran juntas. |
+
+Se conservan `ConnectionStrings__LoyOrder` y `Auth__SigningKey` con el mismo
+propósito. Configurar las claves en variables de entorno o en el gestor de
+secretos del servidor. Activar el flujo solo después de aplicar la migración
+sobre la base existente y comprobar `/health/ready` con la cuenta de BD de la API.
+
+La migración acordada añade `usuario.correo_verificado_en`,
+`usuario.version_sesion` y `public.desafio_correo`. La tabla debe tener
+`id_desafio` UUID, `id_usuario` BIGINT, `correo` VARCHAR(150), `proposito`
+VARCHAR(30), `secreto_hash` BYTEA, `creado_en`, `expira_en`, `usado_en`,
+`invalidado_en` TIMESTAMPTZ e `intentos` SMALLINT NOT NULL DEFAULT 0.
+Los propósitos son `VERIFICAR_CORREO` y `RESTABLECER_CONTRASENA`.
+El rol `loyorder_api` requiere SELECT, INSERT y UPDATE en la tabla nueva.
+La tabla debe referenciar `usuario(id_usuario)`. Definir un índice único
+parcial en `(id_usuario, proposito)` donde `usado_en IS NULL` e
+`invalidado_en IS NULL`, además de un índice para el historial por usuario,
+propósito y fecha de creación.
+
+### Contrato HTTP
+
+Todas las operaciones usan POST y el prefijo `/api/v1/auth`.
+
+| Ruta | JSON | Respuesta con el flujo activo |
+| --- | --- | --- |
+| `/registro` | Campos de registro actuales | 201 con los campos actuales, `correoVerificado: false` e `idDesafio`. |
+| `/login` | `correo`, `contrasena` | 200 con JWT si la cuenta está verificada. Si las credenciales son válidas y falta verificar, 403 con `codigo: "CORREO_NO_VERIFICADO"` e `idDesafio`. |
+| `/correo/confirmar` | `idDesafio`, `codigo` de seis dígitos como texto | 204. |
+| `/correo/reenviar` | `idDesafio` | 202 con el nuevo `idDesafio`. |
+| `/contrasena/solicitar` | `correo` | 202 con el mismo `mensaje` para correos válidos, exista o no la cuenta. |
+| `/contrasena/restablecer` | `token`, `nuevaContrasena` | 204. Invalida la versión anterior del JWT. |
+
+Un desafío inválido, usado o vencido responde 400 con
+`codigo: "DESAFIO_INVALIDO_O_VENCIDO"`. Los límites devuelven 429. El código
+vence en 10 minutos, el enlace en 30 y los desafíos se invalidan tras cinco
+intentos fallidos. Hay 60 segundos de espera entre emisiones y un máximo de
+cinco por usuario y propósito en una hora. El identificador de verificación
+permite reenviar durante 24 horas desde su emisión. Después, un login con las
+credenciales correctas permite volver a iniciar la verificación.
+
+El 201 y el 202 indican que la operación se aceptó. La entrega se intenta
+desde una cola en memoria. Si SMTP falla o la API se reinicia con envíos
+pendientes, el usuario puede reenviar el código o solicitar otro enlace tras
+el intervalo indicado. La recuperación por enlace se habilita para cuentas
+activas con el correo verificado. Las cuentas anteriores pueden verificar su
+buzón tras demostrar su contraseña actual.

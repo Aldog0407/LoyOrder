@@ -4,7 +4,8 @@ public interface IUsuarioRepository
 {
     Task<Usuario?> PorCorreoAsync(string correo, CancellationToken ct);
     Task<Usuario?> PorIdAsync(long id, CancellationToken ct);
-    Task<Usuario> RegistrarClienteAsync(string nombre, string correo, string hash, string? telefono, CancellationToken ct);
+    Task<Usuario> RegistrarClienteAsync(string nombre, string correo, string hash, string? telefono, CancellationToken ct,
+        NuevoDesafio? desafio = null);
 }
 public interface IContrasenas
 {
@@ -28,13 +29,14 @@ public sealed class Acceso(IUsuarioRepository usuarios, IContrasenas claves)
     }
     private string HashFicticio => _ficticio ??= claves.Proteger("Cuenta-ficticia-no-utilizable");
     private string? _ficticio;
-    public Task<Usuario> RegistrarAsync(string nombre, string correo, string clave, string? telefono, CancellationToken ct)
+    public Task<Usuario> RegistrarAsync(string nombre, string correo, string clave, string? telefono, CancellationToken ct,
+        NuevoDesafio? desafio = null)
     {
         if (string.IsNullOrWhiteSpace(nombre) || nombre.Trim().Length > 100)
             throw new SolicitudInvalidaException("Nombre requerido (máximo 100 caracteres).");
         if (!PoliticaContrasena.Cumple(clave))
             throw new SolicitudInvalidaException(PoliticaContrasena.Mensaje);
-        return usuarios.RegistrarClienteAsync(nombre.Trim(), Normalizar(correo), claves.Proteger(clave), telefono, ct);
+        return usuarios.RegistrarClienteAsync(nombre.Trim(), Normalizar(correo), claves.Proteger(clave), telefono, ct, desafio);
     }
     public static string Normalizar(string correo) => correo.Trim().ToLowerInvariant();
 }

@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="../../application/LoyOrder.Application/LoyOrder.Application.csproj" />
     <ProjectReference Include="../../infrastructure/LoyOrder.Infrastructure.Persistence/LoyOrder.Infrastructure.Persistence.csproj" />
-  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageReference Include="MailKit" Version="4.18.2" />
   </ItemGroup>
 </Project>

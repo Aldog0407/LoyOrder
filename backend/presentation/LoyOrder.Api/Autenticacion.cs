@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.IdentityModel.Tokens.Jwt;
 using LoyOrder.Application;
@@ -30,7 +31,8 @@ public sealed class Tokens(SymmetricSecurityKey key, Sesiones sesiones)
         var vence=DateTimeOffset.UtcNow.AddMinutes(30);
         var id=Guid.NewGuid().ToString("N");
         var jwt=new JwtSecurityToken("LoyOrder","LoyOrder.Web",
-            [new("sub",usuario.IdUsuario.ToString()),new("jti",id),new("role",usuario.Rol)],
+            [new("sub",usuario.IdUsuario.ToString(CultureInfo.InvariantCulture)),new("jti",id),new("role",usuario.Rol),
+                new("sv",usuario.VersionSesion.ToString(CultureInfo.InvariantCulture))],
             expires:vence.UtcDateTime,signingCredentials:new(key,SecurityAlgorithms.HmacSha256));
         sesiones.Crear(id,vence);
         return new { accessToken=new JwtSecurityTokenHandler().WriteToken(jwt),tokenType="Bearer",expiresAt=vence,usuario=new { usuario.IdUsuario,usuario.Nombre,usuario.Correo,usuario.Rol } };
@@ -68,7 +70,11 @@ public static class ConfigurarAcceso
                 if(id is null || !long.TryParse(sub,out var userId) || !context.HttpContext.RequestServices.GetRequiredService<Sesiones>().Existe(id))
                 {context.Fail("Sesión inválida.");return;}
                 var usuario=await context.HttpContext.RequestServices.GetRequiredService<IUsuarioRepository>().PorIdAsync(userId,context.HttpContext.RequestAborted);
-                if(usuario is null || !usuario.Activo || usuario.Rol!=context.Principal?.FindFirstValue("role")) context.Fail("Cuenta o permisos modificados.");
+                var exigeCorreo = context.HttpContext.RequestServices.GetService<ConfiguracionDesafios>() is not null;
+                if (usuario is null || !usuario.Activo || usuario.Rol != context.Principal?.FindFirstValue("role") ||
+                    (exigeCorreo && (usuario.CorreoVerificadoEn is null ||
+                        context.Principal?.FindFirstValue("sv") != usuario.VersionSesion.ToString(CultureInfo.InvariantCulture))))
+                    context.Fail("Cuenta o permisos modificados.");
             }};
         });
         builder.Services.AddAuthorization();
