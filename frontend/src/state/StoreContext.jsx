@@ -21,8 +21,7 @@ function reducer(state, action) {
     case 'CLOSE_CART': return { ...state, drawerOpen: false };
     case 'NOTIFY': return { ...state, toast: { id: Date.now(), message: action.message, error: !!action.error } };
     case 'CLEAR_TOAST': return { ...state, toast: null };
-    case 'SET_CONFIG_DRAFT': return { ...state, configDraft: action.config };
-    case 'SET_CONFIG': return { ...state, config: action.config, configDraft: null, payment: action.config.paymentMethods[state.payment] ? state.payment : Object.keys(action.config.paymentMethods).find(key => action.config.paymentMethods[key]) };
+case 'SET_CONFIG': return { ...state, config: action.config, configDraft: null, payment: action.config.paymentMethods[state.payment] ? state.payment : Object.keys(action.config.paymentMethods).find(key => action.config.paymentMethods[key]) };
     case 'SET_DELIVERY': return { ...state, delivery: action.value };
     case 'SET_PAYMENT': return state.config.paymentMethods[action.value] ? { ...state, payment: action.value } : state;
     case 'SET_ADDRESS': return { ...state, address: action.address, pin: action.pin };
@@ -64,7 +63,7 @@ export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, initialize);
   useEffect(() => {
     try {
-      const { drawerOpen: _drawer, toast: _toast, configDraft: _configDraft, ...persisted } = state;
+      const { drawerOpen: _drawer, toast: _toast, ...persisted } = state;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
     } catch { /* Modo privado o almacenamiento deshabilitado. */ }
   }, [state]);

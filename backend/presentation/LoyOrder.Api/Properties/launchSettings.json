@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "LoyOrder.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:63749;http://localhost:5080"
+    }
+  }
+}
