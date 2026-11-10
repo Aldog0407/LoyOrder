@@ -11,16 +11,25 @@ using Microsoft.Extensions.DependencyInjection;
 Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT","Development");
 var users = new UsuariosPrueba();
 var fake = new Repositorio();
-await using var app = ApiHost.Crear([], services => { services.AddSingleton<ICategoriaRepository>(fake); services.AddSingleton<IUsuarioRepository>(users); });
+var reloj = new RelojPrueba();
+await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services =>
+{
+    services.AddSingleton<ICategoriaRepository>(fake);
+    services.AddSingleton<IUsuarioRepository>(users);
+    services.AddSingleton<TimeProvider>(reloj);
+});
 app.Urls.Add("http://127.0.0.1:0");
 await app.StartAsync();
 using var client = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
 var total = 0;
+string ultimaRenovacion = "";
 async Task<string> Login(string correo="cliente@prueba.test")
 {
     using var response=await client.PostAsJsonAsync("/api/v1/auth/login",new{correo,contrasena="Prueba12345!"});
     response.EnsureSuccessStatusCode();
-    return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("accessToken").GetString()!;
+    using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    ultimaRenovacion = json.RootElement.GetProperty("refreshToken").GetString()!;
+    return json.RootElement.GetProperty("accessToken").GetString()!;
 }
 client.DefaultRequestHeaders.Authorization=new("Bearer",await Login());
 async Task Verificar(string ruta, int esperado, string? contenido = null)
@@ -113,23 +122,73 @@ async Task VerificarAcceso()
     client.DefaultRequestHeaders.Authorization=new("Bearer",valid[..^10]+(valid[^10]=='a' ? "b":"a")+valid[^9..]);
     await Check(HttpMethod.Get,"/api/v1/auth/me",401);
     var key=app.Services.GetRequiredService<Microsoft.IdentityModel.Tokens.SymmetricSecurityKey>();
+    var original = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(valid);
     foreach(var expired in new[]{true,false})
     {
-        var id=Guid.NewGuid().ToString();
-        app.Services.GetRequiredService<Sesiones>().Crear(id,DateTimeOffset.UtcNow.AddMinutes(5));
         var jwt=new System.IdentityModel.Tokens.Jwt.JwtSecurityToken("LoyOrder",expired?"LoyOrder.Web":"audiencia-incorrecta",
-            [new("sub","1"),new("jti",id),new("role",Roles.Cliente)],expires:DateTime.UtcNow.AddMinutes(expired?-1:5),signingCredentials:new(key,Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256));
+            original.Claims.Where(c => c.Type is "sub" or "sid" or "jti" or "role" or "sv"),
+            expires:DateTime.UtcNow.AddMinutes(expired?-1:5),signingCredentials:new(key,Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256));
         client.DefaultRequestHeaders.Authorization=new("Bearer",new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(jwt));
         await Check(HttpMethod.Get,"/api/v1/auth/me",401);
     }
     client.DefaultRequestHeaders.Authorization=new("Bearer","token.invalido");
     await Check(HttpMethod.Get,"/api/v1/auth/me",401);
+
+    client.DefaultRequestHeaders.Authorization = null;
+    var primera = ultimaRenovacion;
+    reloj.Avanzar(20);
+    var respuestas = await Task.WhenAll(
+        client.PostAsJsonAsync("/api/v1/auth/renovar", new { refreshToken = primera }),
+        client.PostAsJsonAsync("/api/v1/auth/renovar", new { refreshToken = primera }));
+    try
+    {
+        if (!respuestas.Select(r => (int)r.StatusCode).Order().SequenceEqual([200, 401]))
+            throw new Exception("Solo una renovación simultánea debe tener éxito.");
+        using var renovada = JsonDocument.Parse(await respuestas.Single(r => r.IsSuccessStatusCode).Content.ReadAsStringAsync());
+        var nueva = renovada.RootElement.GetProperty("refreshToken").GetString()!;
+        var vence = renovada.RootElement.GetProperty("sessionExpiresAt").GetDateTimeOffset();
+        if (nueva == primera || vence != reloj.Inicio.AddMinutes(60))
+            throw new Exception("Rotación o plazo máximo incorrecto.");
+        Console.WriteLine($"OK {++total}: renovación concurrente rota el secreto una sola vez");
+        reloj.Avanzar(25);
+        using var respuesta = await client.PostAsJsonAsync("/api/v1/auth/renovar", new { refreshToken = nueva });
+        respuesta.EnsureSuccessStatusCode();
+        using var otra = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+        nueva = otra.RootElement.GetProperty("refreshToken").GetString()!;
+        if (otra.RootElement.GetProperty("idleExpiresAt").GetDateTimeOffset() != vence)
+            throw new Exception("La actividad no debe prolongar la sesión más allá de su máximo.");
+        reloj.Avanzar(16);
+        await Check(HttpMethod.Post, "/api/v1/auth/renovar", 401, new { refreshToken = nueva });
+    }
+    finally { foreach (var respuesta in respuestas) respuesta.Dispose(); }
+
+    var sesiones = app.Services.GetRequiredService<Sesiones>();
+    var cuenta = (await users.PorIdAsync(1, default))!;
+    var inactiva = sesiones.Crear(cuenta);
+    reloj.Avanzar(31);
+    await Check(HttpMethod.Post, "/api/v1/auth/renovar", 401, new { refreshToken = inactiva.RefreshToken });
+
+    var abierta = sesiones.Crear(cuenta);
+    await Check(HttpMethod.Post, "/api/v1/auth/logout", 204, new { refreshToken = abierta.RefreshToken });
+    await Check(HttpMethod.Post, "/api/v1/auth/renovar", 401, new { refreshToken = abierta.RefreshToken });
+
+    var anteriorAlCambio = sesiones.Crear(cuenta);
+    users.VersionCliente++;
+    await Check(HttpMethod.Post, "/api/v1/auth/renovar", 401, new { refreshToken = anteriorAlCambio.RefreshToken });
+}
+sealed class RelojPrueba : TimeProvider
+{
+    public DateTimeOffset Inicio { get; } = DateTimeOffset.UtcNow;
+    private int minutos;
+    public override DateTimeOffset GetUtcNow() => Inicio.AddMinutes(minutos);
+    public void Avanzar(int cantidad) => minutos += cantidad;
 }
 sealed class UsuariosPrueba : IUsuarioRepository
 {
     private readonly Dictionary<string,Usuario> usuarios=new();
     public string Hash {get;}=new LoyOrder.Api.Contrasenas().Proteger("Prueba12345!");
     public bool InactivarCliente {get;set;}
+    public int VersionCliente {get;set;}
     public UsuariosPrueba()
     {
         foreach(var (correo,rol,activo) in new[]{("cliente@prueba.test",Roles.Cliente,true),("admin@prueba.test",Roles.Administrador,true),("operador@prueba.test",Roles.Operador,true),("inactivo@prueba.test",Roles.Cliente,false)})
@@ -139,7 +198,9 @@ sealed class UsuariosPrueba : IUsuarioRepository
     public Task<Usuario?> PorIdAsync(long id,CancellationToken ct)
     {
         var u=usuarios.Values.FirstOrDefault(u=>u.IdUsuario==id);
-        return Task.FromResult(u?.Correo=="cliente@prueba.test"&&InactivarCliente ? u with{Activo=false} :u);
+        return Task.FromResult(u?.Correo == "cliente@prueba.test"
+            ? u with { Activo = !InactivarCliente, VersionSesion = VersionCliente }
+            : u);
     }
     public Task<Usuario> RegistrarClienteAsync(string n,string c,string h,string? t,CancellationToken ct, NuevoDesafio? desafio = null)
     {

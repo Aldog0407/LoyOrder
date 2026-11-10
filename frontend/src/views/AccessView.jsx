@@ -4,7 +4,6 @@ import { registrar } from '../auth.js';
 import { cumpleContrasena, mensajeContrasena } from '../politica-contrasena.js';
 import { useAuth } from '../state/AuthContext.js';
 import { useStore } from '../state/StoreContext.jsx';
-import { rutaInicial } from '../utils/auth-routing.js';
 
 export default function AccessView({ mode }) {
   const registro = mode === 'registro';
@@ -27,8 +26,7 @@ export default function AccessView({ mode }) {
         navigate('/login', { replace: true });
         dispatch({ type: 'NOTIFY', message: 'Cuenta creada. Ya puedes iniciar sesión.' });
       } else {
-        const usuario = await iniciarSesion({ correo: datos.correo.trim(), contrasena: datos.contrasena });
-        navigate(rutaInicial(usuario), { replace: true });
+        await iniciarSesion({ correo: datos.correo.trim(), contrasena: datos.contrasena });
       }
     } catch (fallo) { setError(fallo.message); }
     finally { setEnviando(false); }

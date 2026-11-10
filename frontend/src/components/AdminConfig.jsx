@@ -6,7 +6,8 @@ import { loyverseAdapter } from '../services/loyverseAdapter.js';
 
 export default function AdminConfig() {
   const { state, dispatch } = useStore();
-  const [draft, setDraft] = useState(() => structuredClone(state.config));
+  const draft = state.configDraft ?? state.config;
+  const setDraft = config => dispatch({ type: 'SET_CONFIG_DRAFT', config });
   const [now, setNow] = useState(() => new Date());
   const [testResult, setTestResult] = useState('Sin pruebas realizadas en esta sesión.');
   const [printing, setPrinting] = useState(false);
@@ -17,8 +18,8 @@ export default function AdminConfig() {
     return () => clearInterval(timer);
   }, []);
 
-  const changeShipping = (key, value) => setDraft(prev => ({ ...prev, shipping: { ...prev.shipping, [key]: value } }));
-  const changePayment = key => setDraft(prev => ({ ...prev, paymentMethods: { ...prev.paymentMethods, [key]: !prev.paymentMethods[key] } }));
+  const changeShipping = (key, value) => setDraft({ ...draft, shipping: { ...draft.shipping, [key]: value } });
+  const changePayment = key => setDraft({ ...draft, paymentMethods: { ...draft.paymentMethods, [key]: !draft.paymentMethods[key] } });
   const save = event => {
     event.preventDefault();
     const error = validateConfig(draft);

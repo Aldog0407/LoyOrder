@@ -2,7 +2,7 @@
 
 ## Qué incluye
 
-Registro público únicamente de clientes, inicio de sesión para CLIENTE/OPERADOR/ADMINISTRADOR, hash de contraseñas con PasswordHasher de ASP.NET Core, JWT firmado de 30 minutos, verificación de firma/emisor/audiencia/caducidad, autorización de categorías para CLIENTE y cierre de sesión con invalidación inmediata del token en servidor.
+Registro público únicamente de clientes, inicio de sesión para CLIENTE/OPERADOR/ADMINISTRADOR, hash de contraseñas con PasswordHasher de ASP.NET Core, JWT firmado con renovación de sesión, verificación de firma/emisor/audiencia/caducidad, autorización de categorías para CLIENTE y cierre de sesión con invalidación inmediata del token en servidor.
 
 Cada petición autenticada comprueba en PostgreSQL que el usuario sigue activo y conserva el rol. Un cambio de rol o desactivación invalida el acceso. Los roles se obtienen de cliente y empleado, nunca de un valor elegido por el navegador. El registro rechaza campos extra como rol. El administrador no hereda permisos del operador o cliente.
 
@@ -13,9 +13,10 @@ Frontend: /login, /registro, cierre de sesión, validación de confirmación de 
 ## Endpoints
 
 - POST /api/v1/auth/registro: nombre, correo, contrasena, telefono opcional. 201/400/409/429/503.
-- POST /api/v1/auth/login: correo, contrasena. Devuelve accessToken, tokenType, expiresAt y usuario. 200/400/401/403/429/503.
+- POST /api/v1/auth/login: correo, contrasena. Devuelve accessToken, tokenType, expiresAt, refreshToken, idleExpiresAt, sessionExpiresAt y usuario. 200/400/401/403/429/503.
 - GET /api/v1/auth/me: requiere Authorization: Bearer TOKEN; devuelve identidad sin hash. 200/401/503.
-- POST /api/v1/auth/logout: requiere token, revoca solo la sesión actual. 204/401/503.
+- POST /api/v1/auth/renovar: recibe `{refreshToken}`, verifica el estado de la cuenta y devuelve un JWT y un secreto de renovación nuevos. 200/400/401/429/503.
+- POST /api/v1/auth/logout: recibe el JWT en Authorization o `{refreshToken}`. Revoca la sesión actual. 204/400/401/429/503.
 - GET /api/v1/categorias: ahora requiere CLIENTE. Sin token 401, otros roles 403.
 
 ## Cómo probar sin PostgreSQL
@@ -27,7 +28,19 @@ dotnet build LoyOrder.sln
 dotnet run --project tests/integration/LoyOrder.Api.Tests
 ```
 
-50 pruebas HTTP/aplicación aprobadas en la preparación. Usan un repositorio falso que existe únicamente en el ejecutable de pruebas; no son cuentas disponibles en la API normal. Se prueban registro, contraseña incorrecta, usuario inexistente, cuenta desactivada, correo duplicado, prohibición de elegir rol, acceso de los tres roles, logout/reutilización del token, token alterado, vencido o con audiencia incorrecta. Mantienen las comprobaciones de errores y paginación de 7.1.3.
+56 pruebas HTTP/aplicación aprobadas. Se verifica que solo una renovación simultánea pueda usar el mismo secreto y se comprueban ambos límites, el cierre de sesión y la invalidación tras cambiar la contraseña. Usan un repositorio falso que existe únicamente en el ejecutable de pruebas; no son cuentas disponibles en la API normal. Se prueban registro, contraseña incorrecta, usuario inexistente, cuenta desactivada, correo duplicado, prohibición de elegir rol, acceso de los tres roles, logout/reutilización del token, token alterado, vencido o con audiencia incorrecta. Mantienen las comprobaciones de errores y paginación de 7.1.3.
+
+## Duración de la sesión
+
+El JWT dura 15 minutos por defecto. React lo renueva con la actividad en la pestaña, aproximadamente una vez por minuto mientras haya interacción. La sesión vence después de 30 minutos de inactividad o 8 horas desde el inicio, lo que ocurra primero.
+
+| Variable de la API | Minutos por defecto |
+| --- | ---: |
+| `Auth__AccesoMinutos` | 15 |
+| `Auth__InactividadMinutos` | 30 |
+| `Auth__SesionMaximaMinutos` | 480 |
+
+React avisa dos minutos antes del límite de sesión. Al volver a entrar con la misma cuenta y rol en la pestaña abierta, restaura la ruta y conserva el carrito y el borrador de configuración. Cerrar sesión de forma explícita o entrar con otra cuenta descarta esos datos.
 
 ## Verificación con PostgreSQL real — 5 de noviembre de 2026
 

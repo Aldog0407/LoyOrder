@@ -123,12 +123,12 @@ Se adaptaron a React /login, /registro y /operacion. Consultar `../docs/ACTIVIDA
 - `src/components/ProtectedRoute.jsx` y `src/utils/auth-routing.js` aplican las rutas por rol.
 - `src/auth.js` reutiliza los endpoints de la API ya existentes y mantiene el token solo en memoria.
 - `Navbar` incorpora logout y enlaces por rol; no permite cambiar libremente a administrador.
-- El carrito, historial y dirección de demostración se limpian al iniciar/cerrar/caducar una sesión; la configuración local del restaurante se conserva. Esto no sustituye la persistencia futura por cliente en la API.
+- Al vencer una sesión, se pueden retomar la ruta, el carrito y el borrador de configuración al entrar con la misma cuenta y rol en la pestaña abierta. El cierre voluntario o el acceso con otra cuenta limpia los datos de la sesión. Los ajustes guardados del restaurante se conservan.
 
 Para usar PostgreSQL real, encender primero la API en `http://localhost:5080` con la conexión configurada según `../backend/README.md`. Después, desde `frontend`, ejecutar `npm ci` (primera vez) y `npm run dev`. Abrir `http://localhost:5173/login`. Ya no se usa `python frontend/dev_server.py`.
 
 Opcional: copiar `.env.example` a `.env.local` para configurar `VITE_API_URL` antes de arrancar Vite. La URL no es secreta; nunca colocar contraseñas, claves de firma o tokens en variables `VITE_*`. El valor predeterminado es `http://localhost:5080/api/v1`.
 
-Al recargar la página hay que iniciar sesión nuevamente porque el token no se persiste. Las cuentas reales existentes no cambian. Dashboard, pedidos, impresión y ajustes siguen con el alcance de demostración del equipo.
+Al recargar la página hay que iniciar sesión nuevamente porque las credenciales viven en memoria. El borrador de configuración también vive en memoria. Las cuentas reales existentes no cambian. Dashboard, pedidos, impresión y ajustes siguen con el alcance de demostración del equipo.
 
 Comprobado en la adaptación: `npm run build`, `npm run lint` y 11 pruebas `npm test` (8 de acceso y 3 previas de restaurante). Se comprobó además en navegador contra una instancia temporal de la misma API con repositorios falsos: registro, contraseña sin símbolo rechazada, login de los tres roles, logout, historial limpio y acceso administrativo/configuración. Falta repetir la interfaz React con las cuentas reales de la base local de Aldo; la integración anterior con PostgreSQL ya se había verificado antes de la migración.

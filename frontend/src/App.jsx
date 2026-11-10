@@ -26,12 +26,14 @@ function Toast() {
 
 export default function App() {
   const { state, dispatch } = useStore();
-  const { usuario } = useAuth();
+  const { usuario, avisoSesion } = useAuth();
   const { pathname } = useLocation();
   const titulo = pathname === '/login' ? 'Iniciar sesión' : pathname === '/registro' ? 'Registro' : pathname === '/operacion' ? 'Operación' : pathname.startsWith('/admin') ? 'Administración' : 'Pedidos';
   const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
   useEffect(() => { document.title = `${titulo} · LoyOrder`; }, [titulo]);
-  return <><Navbar/><Routes>
+  return <><Navbar/>{usuario && avisoSesion && <div className="container" role="status">
+    Tu sesión está por vencer. Si necesitas volver a entrar, puedes retomar el trabajo con tu misma cuenta.
+  </div>}<Routes>
     <Route path="/" element={<Navigate replace to={rutaInicial(usuario)}/>}/>
     <Route path="/login" element={<PublicOnly><AccessView key="login" mode="login"/></PublicOnly>}/>
     <Route path="/registro" element={<PublicOnly><AccessView key="registro" mode="registro"/></PublicOnly>}/>
