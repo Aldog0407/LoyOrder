@@ -61,3 +61,9 @@
 #auth-error{color:#a31c14;margin:0;}
 .auth-card button:disabled{opacity:.6;cursor:wait;}
 @media(max-width:390px){.auth-wrap{padding:28px 12px;}.auth-card{padding:24px 20px;}}
+
+/* Checkout: reutilizar los tokens visuales existentes. */
+.checkout-group { border: 0; padding: 0; margin: 24px 0 12px; min-width: 0; }
+.checkout-group legend { font-size: 17px; font-weight: 800; margin-bottom: 10px; }
+.checkout-error { background: var(--error-bg); border: 1px solid var(--error-border); padding: 10px; border-radius: var(--radius-button); color: #761111; }
+.order-head .eyebrow, .summary-card .muted, .history-title h3, .info-pair b, .toast { overflow-wrap: anywhere; min-width: 0; }
