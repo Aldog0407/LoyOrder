@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { defaultConfig } from '../src/config/defaults.js';
 import { checkoutTotals, createPlaceOrderAction, placeOrderState, validateCheckout } from '../src/utils/checkout.js';
 
-const state = (changes = {}) => ({ config: structuredClone(defaultConfig), cart: [{ dishId: 1, variant: 'Clásica', quantity: 2, price: 149 }], orders: [{ id: 'LY-1042' }], delivery: 'local', payment: 'cash', address: 'Calle de prueba 123', pin: { x: 45, y: 50 }, drawerOpen: true, ...changes });
+const state = (changes = {}) => ({ config: structuredClone(defaultConfig), cart: [{ dishId: 1, variant: 'Clásica', quantity: 2, price: 149 }], orders: [{ id: 'LY-1042' }], delivery: 'local', payment: 'cash', address: 'Calle de prueba 123', pin: { lng: -96.9271, lat: 19.5438 }, drawerOpen: true, ...changes });
 
 test('local: folio único, envío cero y persistencia compatible', () => {
   const before = state();

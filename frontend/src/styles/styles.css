@@ -67,3 +67,20 @@
 .checkout-group legend { font-size: 17px; font-weight: 800; margin-bottom: 10px; }
 .checkout-error { background: var(--error-bg); border: 1px solid var(--error-border); padding: 10px; border-radius: var(--radius-button); color: #761111; }
 .order-head .eyebrow, .summary-card .muted, .history-title h3, .info-pair b, .toast { overflow-wrap: anywhere; min-width: 0; }
+
+/* Geographic delivery selector: retain LoyOrder modal and design tokens. */
+.mapbox-address-map { width: 100%; height: clamp(220px, 42vh, 380px); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--bg); }
+.mapbox-address-modal .button.full { margin-top: 12px; }
+.mapbox-address-modal .mapboxgl-ctrl-attrib { font-size: 10px; }
+@media (max-width: 760px) { .mapbox-address-map { height: 32dvh; min-height: 210px; } }
+
+.geocoding-field { position: relative; width: 100%; }
+.geocoding-field .address-input { width: 100%; box-sizing: border-box; padding-right: 42px; font-family: 'Plus Jakarta Sans', sans-serif; }
+.geocoding-field .address-input:disabled { background: #f5f5f5; color: #777; cursor: wait; }
+
+/* Indicador de carga */
+.geocoding-spinner { position: absolute; top: 50%; right: 14px; width: 18px; height: 18px; border: 2px solid #e5e5e5; border-top-color: #E8590C; border-radius: 50%; animation: geocoding-spin 0.8s linear infinite; pointer-events: none; }
+@keyframes geocoding-spin { from { transform: translateY(-50%) rotate(0deg); } to { transform: translateY(-50%) rotate(360deg); } }
+.geocoding-status { margin: 8px 0 12px; color: #E8590C; font-size: 0.78rem; font-weight: 600; }
+.mapbox-address-modal .button:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { .geocoding-spinner { animation: none; transform: translateY(-50%); } }

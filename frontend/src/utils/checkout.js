@@ -1,3 +1,4 @@
+import { isValidPin, normalizeAddress } from './address.js';
 import { paymentCatalog } from '../config/defaults.js';
 import { getDish } from '../data/menu.js';
 import { shippingFee } from './restaurant.js';
@@ -28,6 +29,8 @@ export function validateCheckout(state) {
   })) return 'Revisa los productos y cantidades del carrito.';
   if (!deliveryOptions.some(option => option.id === state.delivery)) return 'Selecciona una modalidad de entrega.';
   if (state.delivery === 'domicilio' && (typeof state.address !== 'string' || state.address.trim().length < 8)) return 'Ingresa una dirección de entrega completa.';
+  if (state.delivery === 'domicilio' && !isValidPin(state.pin)) return 'Selecciona la ubicación en el mapa.';
+  if (state.delivery === 'domicilio' && !normalizeAddress(state.address, state.pin)) return 'Revisa la dirección de entrega.';
   if (!enabledPayments(state).some(method => method.id === state.payment)) return 'Selecciona un método de pago habilitado.';
   if (Object.values(checkoutTotals(state)).some(value => !Number.isFinite(value) || value < 0)) return 'Los importes del pedido no son válidos.';
   return null;

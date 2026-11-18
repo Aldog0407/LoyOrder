@@ -1,3 +1,4 @@
+import { isValidPin } from '../utils/address.js';
 import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
@@ -71,8 +72,8 @@ export default function CartFlow({ onClose = () => {} }) {
           </label>)}</div>
         </fieldset>
         {state.delivery === 'domicilio' && <div className="address-box">
-          <div><small>Dirección</small><strong>{state.address || 'Sin dirección'}</strong></div>
-          <button onClick={() => setMapOpen(true)}>Cambiar →</button>
+          <div><small>Dirección</small><strong>{state.address || 'Sin dirección'}</strong>{isValidPin(state.pin) && <small>{state.pin.lat.toFixed(5)}, {state.pin.lng.toFixed(5)}</small>}</div>
+          <button onClick={() => setMapOpen(true)}>{isValidPin(state.pin) ? 'Cambiar →' : 'Seleccionar en mapa →'}</button>
         </div>}
         <fieldset className="checkout-group">
           <legend>Método de pago</legend>
