@@ -15,6 +15,11 @@ public sealed class Errores(IProblemDetailsService problemas, ILogger<Errores> l
             LimiteCorreoException => (429, "Espera antes de solicitar otro correo."),
             CorreoNoDisponibleException => (503, "No se pudo procesar la solicitud de correo. Intenta más tarde."),
             SolicitudInvalidaException => (400, error.Message),
+            OrigenNoAutorizadoException => (502, "El token de Loyverse no es válido"),
+            OrigenNoDisponibleException => (503, "No fue posible conectar con Loyverse, intenta más tarde"),
+            OrigenNoConfiguradoException => (409, "Falta configurar el token de Loyverse."),
+            RestauranteNoConfiguradoException => (409, error.Message),
+            SincronizacionEnCursoException => (409, "Ya hay una sincronización en curso."),
             DependenciaNoDisponibleException => (503, "Base de datos no disponible o sin configurar."),
             _ => (500, "Ocurrió un error inesperado.")
         };

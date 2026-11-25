@@ -12,11 +12,15 @@ Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT","Development");
 var users = new UsuariosPrueba();
 var fake = new Repositorio();
 var reloj = new RelojPrueba();
+var origen = new OrigenPrueba();
+var catalogo = new CatalogoPrueba();
 await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services =>
 {
     services.AddSingleton<ICategoriaRepository>(fake);
     services.AddSingleton<IUsuarioRepository>(users);
     services.AddSingleton<TimeProvider>(reloj);
+    services.AddSingleton<IOrigenCatalogo>(origen);
+    services.AddSingleton<ICatalogoRepository>(catalogo);
 });
 app.Urls.Add("http://127.0.0.1:0");
 await app.StartAsync();
@@ -114,6 +118,28 @@ async Task VerificarAcceso()
         await Check(HttpMethod.Get,"/api/v1/auth/me",200);
         await Check(HttpMethod.Get,"/api/v1/categorias?idRestaurante=1",403);
     }
+    // 7.2.3 · CU-10: solo el administrador puede sincronizar y ver el historial
+    client.DefaultRequestHeaders.Authorization=null;
+    await Check(HttpMethod.Post,"/api/v1/sincronizacion",401);
+    await Check(HttpMethod.Get,"/api/v1/sincronizacion",401);
+    foreach(var correo in new[]{"cliente@prueba.test","operador@prueba.test"})
+    {
+        client.DefaultRequestHeaders.Authorization=new("Bearer",await Login(correo));
+        await Check(HttpMethod.Post,"/api/v1/sincronizacion",403);
+        await Check(HttpMethod.Get,"/api/v1/sincronizacion",403);
+    }
+    client.DefaultRequestHeaders.Authorization=new("Bearer",await Login("admin@prueba.test"));
+    await Check(HttpMethod.Post,"/api/v1/sincronizacion",200);
+    await Check(HttpMethod.Get,"/api/v1/sincronizacion",200);
+    origen.Falla = new OrigenNoAutorizadoException();
+    await Check(HttpMethod.Post,"/api/v1/sincronizacion",502);
+    origen.Falla = new OrigenNoDisponibleException();
+    await Check(HttpMethod.Post,"/api/v1/sincronizacion",503);
+    origen.Falla = null;
+    catalogo.Restaurante = null;
+    await Check(HttpMethod.Post,"/api/v1/sincronizacion",409);
+    catalogo.Restaurante = new(1,"t1",2);
+
     client.DefaultRequestHeaders.Authorization=new("Bearer",await Login());
     users.InactivarCliente=true;
     await Check(HttpMethod.Get,"/api/v1/auth/me",401);
@@ -218,4 +244,30 @@ sealed class Repositorio : ICategoriaRepository
         if(Fallo == 2) throw new InvalidOperationException("DETALLE_INTERNO_NO_PUBLICAR");
         return Task.FromResult<IReadOnlyList<Categoria>>(restaurante==1 ? [new(1,1,null,"Bebidas",true)] : []);
     }
+}
+
+sealed class OrigenPrueba : IOrigenCatalogo
+{
+    public Exception? Falla { get; set; }
+    public Task<IReadOnlyList<TiendaOrigen>> TiendasAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<TiendaOrigen>>([new("t1","Tienda")]);
+    public Task<IReadOnlyList<CategoriaOrigen>> CategoriasAsync(CancellationToken ct) =>
+        Falla is null ? Task.FromResult<IReadOnlyList<CategoriaOrigen>>([new("c1","Bebidas",false)]) : throw Falla;
+    public Task<IReadOnlyList<ArticuloOrigen>> ArticulosAsync(string t, DateTimeOffset? desde, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ArticuloOrigen>>([new("a1","Refresco",null,"c1",null,true,false,[new("v1",null,25m,true)])]);
+    public Task<IReadOnlyList<ExistenciaOrigen>> ExistenciasAsync(string t, CancellationToken ct) => Task.FromResult<IReadOnlyList<ExistenciaOrigen>>([new("v1",10m)]);
+}
+sealed class CatalogoPrueba : ICatalogoRepository
+{
+    private long siguiente;
+    public RestauranteSincronizable? Restaurante { get; set; } = new(1,"t1",2);
+    public Task<RestauranteSincronizable?> RestauranteAsync(long? id, CancellationToken ct) => Task.FromResult(Restaurante);
+    public Task VincularTiendaAsync(long id, string tienda, CancellationToken ct) => Task.CompletedTask;
+    public Task<DateTimeOffset?> UltimaCorrectaAsync(long id, string tipo, CancellationToken ct) => Task.FromResult<DateTimeOffset?>(null);
+    public Task<long> IniciarRegistroAsync(long id, string tipo, DateTimeOffset inicio, CancellationToken ct) => Task.FromResult(++siguiente);
+    public Task TerminarRegistroAsync(long id, string estado, DateTimeOffset fin, string? error, string? resumen, CancellationToken ct) => Task.CompletedTask;
+    public Task<ResultadoCatalogo> GuardarCatalogoAsync(long id, IReadOnlyList<CategoriaGuardar> c, IReadOnlyList<ProductoGuardar> p, CancellationToken ct) =>
+        Task.FromResult(new ResultadoCatalogo(c.Count, 0, p.Count, 0, 0, 1, 0));
+    public Task<int> GuardarExistenciasAsync(IReadOnlyList<ExistenciaOrigen> e, CancellationToken ct) => Task.FromResult(e.Count);
+    public Task<int> CategoriasSinEstacionAsync(long id, CancellationToken ct) => Task.FromResult(0);
+    public Task<IReadOnlyList<RegistroSincronizacion>> HistorialAsync(long id, int n, CancellationToken ct) => Task.FromResult<IReadOnlyList<RegistroSincronizacion>>([]);
 }

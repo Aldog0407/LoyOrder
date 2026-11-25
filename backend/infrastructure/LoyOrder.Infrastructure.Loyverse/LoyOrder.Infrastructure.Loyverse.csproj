@@ -15,6 +15,11 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <!-- El adaptador OrigenCatalogoLoyverse implementa el puerto IOrigenCatalogo de la capa de aplicación (7.2.3). -->
+  <ItemGroup>
+    <ProjectReference Include="../../application/LoyOrder.Application/LoyOrder.Application.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="LoyOrder.Infrastructure.Loyverse.Tests" />
   </ItemGroup>

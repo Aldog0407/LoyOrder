@@ -91,6 +91,7 @@ El script hace lo siguiente:
 - Comprueba que llega a la BD (puerto 5432).
 - Compila la API en Release en `publish\api`. Esa carpeta está en `.gitignore`, no se sube.
 - Pide la contraseña de `loyorder_app_user`.
+- Pide, opcional, el token de la **cuenta de prueba** de Loyverse. Con token, la API sincroniza el catálogo y el inventario cada `intervalo_sincronizacion` minutos (actividad 7.2.3, ver `docs/ACTIVIDAD_7_2_3.md`). Con Enter vacío arranca sin sincronización. El token solo vive en la variable `Loyverse__Token` de esa ventana.
 - Genera la clave de firma de los JWT (`Auth__SigningKey`) en memoria y arranca en `http://0.0.0.0:5080` con `ASPNETCORE_ENVIRONMENT=Production`.
 
 **La ventana debe quedarse abierta.** Ctrl+C detiene la API.
@@ -178,4 +179,4 @@ Las cuentas de la semilla (`@loyorder.invalid`) **no pueden iniciar sesión**; s
 - **La API corre en una ventana, no como servicio.** Si se cierra la ventana o se reinicia el equipo, hay que volver a arrancarla.
 - **La clave de firma se genera en cada arranque.** Al reiniciar la API todos deben volver a iniciar sesión; las sesiones ya vivían en memoria.
 - **Límite de intentos de acceso compartido.** El límite de 20 intentos por minuto se cuenta por IP. Detrás de Nginx todos los navegadores llegan con la IP del equipo del frontend, así que comparten ese límite. Para corregirlo, la API debe leer `X-Forwarded-For` (`UseForwardedHeaders`); Nginx ya lo envía.
-- **Datos de demostración.** El menú, el seguimiento y el dashboard siguen con datos de demostración hasta que estén la sincronización con Loyverse (7.2.3) y el catálogo (7.2.4).
+- **Datos de demostración.** La sincronización con Loyverse (7.2.3) ya llena las tablas del catálogo, pero el menú, el seguimiento y el dashboard del frontend siguen con datos de demostración hasta que el catálogo (7.2.4) y los pedidos lean de la API.

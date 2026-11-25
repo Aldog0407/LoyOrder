@@ -325,6 +325,56 @@ static class Pruebas
         Afirmar.Igual(3, h.Peticiones.Count, "Peticiones:");
     }
 
+    // ---------------------------------------------------------- adaptador de la sincronización (7.2.3)
+
+    public static async Task Prueba_AdaptadorTomaPrecioYDisponibilidadDeLaTiendaVinculada()
+    {
+        var (c, h, _) = Fabrica.Crear();
+        h.Responder(HttpStatusCode.OK, """
+            {"items":[{"id":"a1","item_name":"Alitas","category_id":"c1","track_stock":true,"deleted_at":null,"variants":[
+              {"variant_id":"v1","option1_value":"6 pzas","default_price":90,"stores":[{"store_id":"t1","price":95,"available_for_sale":true},{"store_id":"t2","price":99,"available_for_sale":false}]},
+              {"variant_id":"v2","default_price":150,"stores":[{"store_id":"t2","price":150,"available_for_sale":true}]},
+              {"variant_id":"v3","default_price":20,"stores":[{"store_id":"t1","price":null,"available_for_sale":true}]}]},
+             {"id":"a2","item_name":"Viejo","deleted_at":"2026-11-01T00:00:00Z","variants":[]}]}
+            """);
+        var origen = new OrigenCatalogoLoyverse(c);
+        var articulos = await origen.ArticulosAsync("t1", null, default);
+        var v = articulos[0].Variantes;
+        Afirmar.Igual(95m, v[0].Precio, "Precio de la tienda t1:");
+        Afirmar.Verdadero(v[0].DisponibleEnTienda && v[0].Nombre == "6 pzas", "v1 disponible en t1");
+        Afirmar.Verdadero(v[1].Precio is null && !v[1].DisponibleEnTienda, "v2 no está en t1: no se vende");
+        Afirmar.Igual(20m, v[2].Precio, "Sin precio en la tienda se usa default_price:");
+        Afirmar.Verdadero(articulos[0].ControlaInventario && articulos[0].CategoriaId == "c1", "datos del artículo");
+        Afirmar.Verdadero(articulos[1].Eliminado, "a2 eliminado");
+        Afirmar.Verdadero(h.Peticiones[0].Url.Contains("show_deleted=true"), "pide los eliminados");
+    }
+
+    public static async Task Prueba_AdaptadorSumaExistenciasSoloDeLaTienda()
+    {
+        var (c, h, _) = Fabrica.Crear();
+        h.Responder(HttpStatusCode.OK, """{"inventory_levels":[{"variant_id":"v1","store_id":"t1","in_stock":5},{"variant_id":"v1","store_id":"t2","in_stock":9},{"variant_id":"v2","store_id":"t1","in_stock":-1}]}""");
+        var existencias = await new OrigenCatalogoLoyverse(c).ExistenciasAsync("t1", default);
+        Afirmar.Igual(5m, existencias.Single(e => e.VarianteId == "v1").Existencias, "v1:");
+        Afirmar.Igual(-1m, existencias.Single(e => e.VarianteId == "v2").Existencias, "v2 (negativo, P17):");
+    }
+
+    public static async Task Prueba_AdaptadorTraduceLosErroresDeLoyverse()
+    {
+        var (c, h, _) = Fabrica.Crear();
+        h.Responder(HttpStatusCode.Unauthorized, """{"errors":[{"code":"UNAUTHORIZED"}]}""");
+        try { await new OrigenCatalogoLoyverse(c).CategoriasAsync(default); throw new Exception("No lanzó"); }
+        catch (LoyOrder.Application.OrigenNoAutorizadoException) { }
+
+        var (c2, h2, _) = Fabrica.Crear();
+        for (var i = 0; i < 4; i++) h2.FallarRed();
+        try { await new OrigenCatalogoLoyverse(c2).TiendasAsync(default); throw new Exception("No lanzó"); }
+        catch (LoyOrder.Application.OrigenNoDisponibleException) { }
+
+        var (c3, _, _) = Fabrica.Crear(token: null);
+        try { await new OrigenCatalogoLoyverse(c3).TiendasAsync(default); throw new Exception("No lanzó"); }
+        catch (LoyOrder.Application.OrigenNoConfiguradoException) { }
+    }
+
     private static NuevoRecibo ReciboDePrueba() => new()
     {
         TiendaId = "t1",

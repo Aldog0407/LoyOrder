@@ -3,7 +3,7 @@ LoyOrder - Equipo de base de datos (actividad 7.1.7, despliegue temprano)
 
 Prepara PostgreSQL para que la API, desde OTRO equipo de la VPN Tailscale, se conecte a la base loyorder:
   1. Crea la base loyorder y corre el esquema y los objetos del equipo (solo si la base no existe).
-  2. Corre la migración de autenticación por correo (es segura de repetir).
+  2. Corre las migraciones de autenticación por correo y de sincronización (son seguras de repetir).
   3. Pone la contraseña de loyorder_app_user (el usuario con privilegios mínimos que usa la API).
   4. Abre PostgreSQL solo a la red de Tailscale (100.64.0.0/10): listen_addresses, pg_hba.conf y firewall.
 
@@ -63,6 +63,7 @@ if ((Consulta "postgres" "SELECT 1 FROM pg_database WHERE datname='loyorder'") -
     Write-Host "  La base loyorder ya existe; no se vuelven a correr el esquema ni los objetos, y sus datos no se tocan."
 }
 CorrerArchivo "LoyOrderAutenticacionCorreo.sql"   # usa IF NOT EXISTS: se puede repetir
+CorrerArchivo "LoyOrderSincronizacion.sql"         # 7.2.3: también se puede repetir
 if ($DatosSemilla) {
     if (-not (Test-Path (Join-Path $scripts "LoyOrderDatosSemilla.sql"))) {
         Write-Warning "No está database\scripts\LoyOrderDatosSemilla.sql en el repo; se continúa sin datos de demostración."

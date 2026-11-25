@@ -12,7 +12,9 @@ Uso (PowerShell, desde la raíz del repo):
                   basta con usarlo la primera vez.
   -SinCompilar    Arranca la versión ya publicada en publish\api sin volver a compilar.
 
-La contraseña de loyorder_app_user se pide en pantalla. La clave para firmar los tokens se genera al arrancar
+La contraseña de loyorder_app_user se pide en pantalla. Después se pide, de forma opcional, el token de la cuenta de
+PRUEBA de Loyverse (actividad 7.2.3): con él la API sincroniza el catálogo y el inventario cada pocos minutos. Si se
+deja vacío, la API arranca igual, sin sincronización automática. Nunca uses el token de la cuenta real del restaurante. La clave para firmar los tokens se genera al arrancar
 y vive solo en memoria: al reiniciar la API hay que volver a iniciar sesión (las sesiones ya eran en memoria).
 Deja esta ventana abierta mientras se use el sistema; Ctrl+C detiene la API.
 #>
@@ -52,6 +54,9 @@ if (-not $SinCompilar) {
 $s = Read-Host "Contraseña de loyorder_app_user" -AsSecureString
 $clave = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
 
+$t = Read-Host "Token de Loyverse de la cuenta de PRUEBA (Enter para omitir)" -AsSecureString
+$tokenLoyverse = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($t))
+
 $bytes = New-Object byte[] 32
 [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
 
@@ -59,6 +64,13 @@ $env:ASPNETCORE_ENVIRONMENT = "Production"
 $env:ASPNETCORE_URLS = "http://0.0.0.0:$Puerto"
 $env:ConnectionStrings__LoyOrder = "Host=$IpBd;Port=5432;Database=loyorder;Username=loyorder_app_user;Password=$clave;Timeout=5;Command Timeout=10"
 $env:Auth__SigningKey = [Convert]::ToBase64String($bytes)
+if ($tokenLoyverse) {
+    $env:Loyverse__Token = $tokenLoyverse
+    Write-Host "Sincronización con Loyverse: activa (cuenta de prueba)."
+} else {
+    Remove-Item Env:\Loyverse__Token -ErrorAction SilentlyContinue
+    Write-Host "Sincronización con Loyverse: desactivada (no se escribió token)."
+}
 
 $ip = $null
 if (Get-Command tailscale -ErrorAction SilentlyContinue) { $ip = (tailscale ip -4 | Select-Object -First 1) }
