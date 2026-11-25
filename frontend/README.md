@@ -96,7 +96,7 @@ frontend/
 - La impresora se conecta y responde **solo en simulación**. El estado no corresponde a hardware real.
 - El cambio de estado de la impresora se ensaya en el formulario; se persiste con «Guardar configuración» (y se reinicia como desconectada al recargar la app).
 - El dashboard usa datos demo; el selector de periodo no ejecuta consultas temporales.
-- Se incluyen cantidades, variantes requeridas, disponibilidad, confirmación de compra, seguimiento y reordenación. No hay correo, procesador de pagos o sincronización POS.
+- Se incluyen cantidades, variantes requeridas, disponibilidad, confirmación de compra, seguimiento y reordenación. El correo de acceso y recuperación usa la API cuando el servidor lo habilita. El procesador de pagos y la sincronización POS siguen pendientes.
 
 ## Próximas iteraciones recomendadas
 
@@ -123,7 +123,7 @@ Se adaptaron a React /login, /registro y /operacion. Consultar `../docs/ACTIVIDA
 - `src/components/ProtectedRoute.jsx` y `src/utils/auth-routing.js` aplican las rutas por rol.
 - `src/auth.js` reutiliza los endpoints de la API ya existentes y mantiene el token solo en memoria.
 - `Navbar` incorpora logout y enlaces por rol; no permite cambiar libremente a administrador.
-- El carrito, historial y dirección de demostración se limpian al iniciar/cerrar/caducar una sesión; la configuración local del restaurante se conserva. Esto no sustituye la persistencia futura por cliente en la API.
+- Al vencer la sesión se conserva el trabajo en la pestaña abierta para retomarlo con la misma cuenta y rol. El cierre voluntario o el acceso con otra cuenta limpia los datos de la sesión. El borrador de configuración vive en memoria hasta guardar los ajustes.
 
 Para usar PostgreSQL real, encender primero la API en `http://localhost:5080` con la conexión configurada según `../backend/README.md`. Después, desde `frontend`, ejecutar `npm ci` (primera vez) y `npm run dev`. Abrir `http://localhost:5173/login`. Ya no se usa `python frontend/dev_server.py`.
 
@@ -132,3 +132,16 @@ Opcional: copiar `.env.example` a `.env.local` para configurar `VITE_API_URL` an
 Al recargar la página hay que iniciar sesión nuevamente porque el token no se persiste. Las cuentas reales existentes no cambian. Dashboard, pedidos, impresión y ajustes siguen con el alcance de demostración del equipo.
 
 Comprobado en la adaptación: `npm run build`, `npm run lint` y 11 pruebas `npm test` (8 de acceso y 3 previas de restaurante). Se comprobó además en navegador contra una instancia temporal de la misma API con repositorios falsos: registro, contraseña sin símbolo rechazada, login de los tres roles, logout, historial limpio y acceso administrativo/configuración. Falta repetir la interfaz React con las cuentas reales de la base local de Aldo; la integración anterior con PostgreSQL ya se había verificado antes de la migración.
+
+
+## Integración del 24 de noviembre de 2026
+
+Las rutas `/verificar-correo`, `/recuperar-contrasena` y `/restablecer-contrasena` consumen el contrato de correo documentado en `../backend/README.md`. El registro y un login con `CORREO_NO_VERIFICADO` llevan a la verificación. El desafío de verificación viaja en el estado de navegación. Si se pierde, se puede iniciar sesión con las credenciales correctas para obtenerlo nuevamente.
+
+El enlace de recuperación aporta `?token=...`. La pantalla retiene ese valor en memoria y lo retira de la URL mediante una navegación de reemplazo. Al recargar esa pantalla es necesario abrir nuevamente el enlace del correo. El código, el enlace y su vigencia se validan en la API. Una confirmación correcta conduce al login mediante el enlace visible.
+
+Desde “Mi pedido”, el enlace “Consultar pedido por folio” abre `/consultar-pedido`. La ruta `/seguimiento/:folio` consulta un pedido persistido de la cuenta autenticada y permite calificarlo cuando está Entregado. Se actualiza cada 15 segundos con la pestaña visible. Las peticiones automáticas de consulta no cuentan como interacción para prolongar la sesión.
+
+El checkout existente conserva su alcance de demostración. Sus folios UUID de 39 caracteres requieren integración con el folio definitivo de la API, cuyo esquema admite 30. Los pedidos del checkout local todavía no se guardan en PostgreSQL. No se puede usar un folio local para consultar un pedido que no existe en la base.
+
+Validación de este avance. 25 pruebas Node, ESLint y compilación de producción. Pruebas de navegador contra PostgreSQL 18 temporal con SMTP local de prueba para registro, verificación, solicitud del enlace, apertura de restablecimiento, consulta de pedido y envío de calificación. El cambio de contraseña, consumo único del enlace y revocación de sesiones también se comprobaron por HTTP. Falta comprobar entrega a un buzón real con Gmail.

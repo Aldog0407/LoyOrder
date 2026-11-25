@@ -14,6 +14,8 @@ public sealed class Errores(IProblemDetailsService problemas, ILogger<Errores> l
             DesafioInvalidoException => (400, "El código o enlace es inválido o venció."),
             LimiteCorreoException => (429, "Espera antes de solicitar otro correo."),
             CorreoNoDisponibleException => (503, "No se pudo procesar la solicitud de correo. Intenta más tarde."),
+            PedidoNoEncontradoException => (404, "Pedido no encontrado."),
+            CalificacionNoPermitidaException => (409, "Solo se puede calificar una vez un pedido entregado."),
             SolicitudInvalidaException => (400, error.Message),
             OrigenNoAutorizadoException => (502, "El token de Loyverse no es válido"),
             OrigenNoDisponibleException => (503, "No fue posible conectar con Loyverse, intenta más tarde"),

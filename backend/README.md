@@ -40,7 +40,7 @@ También se incluyen peticiones en `presentation/LoyOrder.Api/LoyOrder.Api.http`
 
 ## Alcance y siguientes actividades
 
-Únicamente infraestructura base y una lectura pública de categorías para comprobar las capas. No implementa autenticación, altas de usuarios, pedidos, modificaciones de catálogo, sincronización ni registro de ventas. Las rutas administrativas deben incorporar autorización al desarrollarse. Esta ejecución HTTP local es para desarrollo; el despliegue deberá configurar HTTPS y el origen permitido del frontend según la arquitectura del equipo.
+La actividad 7.1.3 aportó la infraestructura base y la lectura de categorías. Las incorporaciones posteriores agregan autenticación, roles, correo de acceso y consulta/calificación de pedidos. Categorías requiere CLIENTE. La creación de pedidos, operación del restaurante, sincronización y registro de ventas continúan pendientes de integración. Esta ejecución HTTP local es para desarrollo; el despliegue deberá configurar HTTPS y el origen permitido del frontend según la arquitectura del equipo.
 
 ## Pruebas existentes de Loyverse
 
@@ -66,7 +66,7 @@ Revisar `git diff --cached` antes de confirmar. Si hay conflictos, resolverlos a
 
 La verificación por código y la recuperación por enlace se habilitan con
 `CorreoAutenticacion__Habilitado=true`. El valor predeterminado es desactivado
-hasta integrar las pantallas de React y la migración de Gabriel.
+hasta configurar el remitente SMTP y comprobar que la migración de Gabriel está aplicada. Las pantallas React de verificación y recuperación ya están integradas.
 
 ### Configuración del servidor
 
@@ -125,3 +125,40 @@ pendientes, el usuario puede reenviar el código o solicitar otro enlace tras
 el intervalo indicado. La recuperación por enlace se habilita para cuentas
 activas con el correo verificado. Las cuentas anteriores pueden verificar su
 buzón tras demostrar su contraseña actual.
+
+
+## Seguimiento y calificación del cliente (7.2.10 y 7.2.18)
+
+Ambas rutas requieren un JWT con rol CLIENTE. El cliente se obtiene de `sub`. La API consulta `cliente.id_cliente`, que es también `usuario.id_usuario` en el esquema existente.
+
+| Método y ruta | Entrada | Respuestas |
+| --- | --- | --- |
+| GET `/api/v1/pedidos/{folio}` | Folio de hasta 30 caracteres | 200, 400, 401, 403, 404, 503 |
+| POST `/api/v1/pedidos/{folio}/calificacion` | JSON con `calificacion` de 1 a 5 y `comentario` opcional de hasta 2000 caracteres | 204, 400, 401, 403, 404, 409, 503 |
+
+La consulta devuelve `folio`, `estado`, `tipoEntrega`, `fechaCreacion`, `fechaEntrega`, `subtotal`, `costoEnvio`, `total`, `calificacion`, `comentario`, `articulos` e `historial`. Cada artículo contiene `nombreProducto`, `cantidad`, `precioUnitario`, `subtotal` e `indicaciones`. Cada evento contiene `estadoAnterior`, `estadoNuevo`, `fechaCambio` y `motivo`. Se conservan los estados y modalidades del SQL de Gabriel. Las fechas se serializan en UTC y React las muestra con la zona horaria del dispositivo.
+
+Un folio inexistente o de otro cliente responde el mismo 404. La calificación usa una transacción con bloqueo del pedido. Un pedido sin entregar o una calificación que pretende reemplazar otra responde 409. Repetir la misma calificación y comentario devuelve 204 y conserva lo ya guardado. El comentario se recorta en sus extremos, y vacío se guarda como NULL. Los 2000 caracteres son un límite de API establecido en esta implementación, configurable mediante cambio del contrato con el equipo.
+
+Estas rutas utilizan `pedido`, `detalle_pedido`, `historial_estado` y `cliente` existentes. La creación del pedido y su cambio de estado siguen siendo necesarios para que el flujo de checkout se conecte a estos endpoints. La consulta y calificación se comprobaron con el rol restringido `loyorder_app_user`.
+
+## Envío con Gmail
+
+Para el transporte SMTP implementado, configurar `smtp.gmail.com`, puerto 587 y `StartTls`. Gmail ofrece contraseñas de aplicación para cuentas con verificación en dos pasos. Su disponibilidad depende de la configuración de la cuenta. Consultar la documentación oficial antes de preparar el remitente. [Servidor SMTP](https://developers.google.com/workspace/gmail/imap/imap-smtp), [contraseñas de aplicación](https://support.google.com/mail/answer/185833?hl=es).
+
+Desde PowerShell, después de configurar `ConnectionStrings__LoyOrder`, aplicar la migración y definir las claves del servidor, completar los valores siguientes en la misma ventana. La clave de códigos debe conservarse entre ejecuciones para poder validar los códigos pendientes.
+
+```powershell
+$env:CorreoAutenticacion__Habilitado='true'
+$env:CorreoAutenticacion__UrlFrontend='http://localhost:5173'
+$env:CorreoAutenticacion__Smtp__Host='smtp.gmail.com'
+$env:CorreoAutenticacion__Smtp__Puerto='587'
+$env:CorreoAutenticacion__Smtp__Seguridad='StartTls'
+$env:CorreoAutenticacion__Smtp__Remitente=Read-Host 'Dirección de Gmail de LoyOrder'
+$env:CorreoAutenticacion__Smtp__Usuario=$env:CorreoAutenticacion__Smtp__Remitente
+$claveCorreo=Read-Host 'Contraseña de aplicación de Gmail' -AsSecureString
+$env:CorreoAutenticacion__Smtp__Contrasena=[System.Net.NetworkCredential]::new('', $claveCorreo).Password
+dotnet run --project backend/presentation/LoyOrder.Api
+```
+
+Configurar `CorreoAutenticacion__ClaveCodigo` con una clave aleatoria en Base64 de al menos 32 bytes, conforme a la sección de correo. ASP.NET Core lee las variables del proceso, por lo que los bloques anteriores se ejecutan en PowerShell. El correo se habilita al definir todas sus opciones. Comprobar el envío a un buzón real antes de la revisión. La validación local del 24 de noviembre empleó un receptor SMTP temporal.

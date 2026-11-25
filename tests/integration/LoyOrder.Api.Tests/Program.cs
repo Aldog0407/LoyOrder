@@ -5,6 +5,7 @@ using LoyOrder.Api;
 using LoyOrder.Application;
 using LoyOrder.Domain;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,11 +18,15 @@ var catalogo = new CatalogoPrueba();
 await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services =>
 {
     services.AddSingleton<ICategoriaRepository>(fake);
+    services.AddSingleton<IPedidoClienteRepository>(new PedidosPrueba());
     services.AddSingleton<IUsuarioRepository>(users);
     services.AddSingleton<TimeProvider>(reloj);
     services.AddSingleton<IOrigenCatalogo>(origen);
     services.AddSingleton<ICatalogoRepository>(catalogo);
 });
+// La suite combinada supera los 20 intentos por minuto del acceso normal.
+// Este servidor temporal comprueba permisos y flujos sin limitar la frecuencia.
+app.MapControllers().DisableRateLimiting();
 app.Urls.Add("http://127.0.0.1:0");
 await app.StartAsync();
 using var client = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
@@ -147,6 +152,24 @@ async Task VerificarAcceso()
     var valid=await Login();
     client.DefaultRequestHeaders.Authorization=new("Bearer",valid[..^10]+(valid[^10]=='a' ? "b":"a")+valid[^9..]);
     await Check(HttpMethod.Get,"/api/v1/auth/me",401);
+    client.DefaultRequestHeaders.Authorization = new("Bearer", await Login());
+    await Check(HttpMethod.Get, "/api/v1/pedidos/PRUEBA-1", 200);
+    await Check(HttpMethod.Get, "/api/v1/pedidos/AJENO", 404);
+    await Check(HttpMethod.Get, "/api/v1/pedidos/" + new string('x', 31), 400);
+    await Check(HttpMethod.Post, "/api/v1/pedidos/PRUEBA-1/calificacion", 400, new { calificacion = 6 });
+    await Check(HttpMethod.Post, "/api/v1/pedidos/PRUEBA-1/calificacion", 400, new { calificacion = 5, idCliente = 1 });
+    await Check(HttpMethod.Post, "/api/v1/pedidos/PRUEBA-1/calificacion", 204, new { calificacion = 5, comentario = "Bien" });
+    client.DefaultRequestHeaders.Authorization = new("Bearer", await Login("nuevo@prueba.test"));
+    await Check(HttpMethod.Get, "/api/v1/pedidos/PRUEBA-1", 404);
+    foreach (var correo in new[] { "admin@prueba.test", "operador@prueba.test" })
+    {
+        client.DefaultRequestHeaders.Authorization = new("Bearer", await Login(correo));
+        await Check(HttpMethod.Get, "/api/v1/pedidos/PRUEBA-1", 403);
+        await Check(HttpMethod.Post, "/api/v1/pedidos/PRUEBA-1/calificacion", 403, new { calificacion = 5 });
+    }
+    client.DefaultRequestHeaders.Authorization = null;
+    await Check(HttpMethod.Get, "/api/v1/pedidos/PRUEBA-1", 401);
+    client.DefaultRequestHeaders.Authorization = new("Bearer", valid);
     var key=app.Services.GetRequiredService<Microsoft.IdentityModel.Tokens.SymmetricSecurityKey>();
     var original = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(valid);
     foreach(var expired in new[]{true,false})
@@ -270,4 +293,17 @@ sealed class CatalogoPrueba : ICatalogoRepository
     public Task<int> GuardarExistenciasAsync(IReadOnlyList<ExistenciaOrigen> e, CancellationToken ct) => Task.FromResult(e.Count);
     public Task<int> CategoriasSinEstacionAsync(long id, CancellationToken ct) => Task.FromResult(0);
     public Task<IReadOnlyList<RegistroSincronizacion>> HistorialAsync(long id, int n, CancellationToken ct) => Task.FromResult<IReadOnlyList<RegistroSincronizacion>>([]);
+}
+
+sealed class PedidosPrueba : IPedidoClienteRepository
+{
+    public Task<SeguimientoPedido?> ConsultarAsync(long idUsuario, string folio, CancellationToken ct) =>
+        Task.FromResult<SeguimientoPedido?>(idUsuario == 1 && folio == "PRUEBA-1"
+            ? new(folio, "Entregado", "Recolección", DateTime.UtcNow, DateTime.UtcNow, 100, 0, 100, null, null, [], [])
+            : null);
+
+    public async Task CalificarAsync(long idUsuario, string folio, short calificacion, string? comentario, CancellationToken ct)
+    {
+        if (await ConsultarAsync(idUsuario, folio, ct) is null) throw new PedidoNoEncontradoException();
+    }
 }

@@ -4,12 +4,14 @@ import { useAuth } from './state/AuthContext.js';
 import { rutaInicial } from './utils/auth-routing.js';
 import ProtectedRoute, { PublicOnly } from './components/ProtectedRoute.jsx';
 import AccessView from './views/AccessView.jsx';
+import EmailAccessView from './views/EmailAccessView.jsx';
 import OperatorView from './views/OperatorView.jsx';
 import Navbar from './components/Navbar.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import AdminConfig from './components/AdminConfig.jsx';
 import MenuView from './views/MenuView.jsx';
 import TrackingView from './views/TrackingView.jsx';
+import StoredTrackingView from './views/StoredTrackingView.jsx';
 import HistoryView from './views/HistoryView.jsx';
 import AdminDashboard from './views/AdminDashboard.jsx';
 import { useStore } from './state/StoreContext.jsx';
@@ -37,9 +39,14 @@ export default function App() {
     <Route path="/" element={<Navigate replace to={rutaInicial(usuario)}/>}/>
     <Route path="/login" element={<PublicOnly><AccessView key="login" mode="login"/></PublicOnly>}/>
     <Route path="/registro" element={<PublicOnly><AccessView key="registro" mode="registro"/></PublicOnly>}/>
+    <Route path="/verificar-correo" element={<PublicOnly><EmailAccessView key="verificar" mode="verificar"/></PublicOnly>}/>
+    <Route path="/recuperar-contrasena" element={<PublicOnly><EmailAccessView key="recuperar" mode="recuperar"/></PublicOnly>}/>
+    <Route path="/restablecer-contrasena" element={<PublicOnly><EmailAccessView key="restablecer" mode="restablecer"/></PublicOnly>}/>
     <Route path="/operacion" element={<ProtectedRoute roles={['OPERADOR']}><OperatorView/></ProtectedRoute>}/>
     <Route path="/menu" element={<ProtectedRoute roles={['CLIENTE']}><MenuView/></ProtectedRoute>}/>
     <Route path="/seguimiento" element={<ProtectedRoute roles={['CLIENTE']}><TrackingView/></ProtectedRoute>}/>
+    <Route path="/consultar-pedido" element={<ProtectedRoute roles={['CLIENTE']}><StoredTrackingView key="consulta"/></ProtectedRoute>}/>
+    <Route path="/seguimiento/:folio" element={<ProtectedRoute roles={['CLIENTE']}><StoredTrackingView key={pathname}/></ProtectedRoute>}/>
     <Route path="/historial" element={<ProtectedRoute roles={['CLIENTE']}><HistoryView/></ProtectedRoute>}/>
     <Route path="/admin" element={<ProtectedRoute roles={['ADMINISTRADOR']}><AdminDashboard/></ProtectedRoute>}/>
     <Route path="/admin/configuracion" element={<ProtectedRoute roles={['ADMINISTRADOR']}><AdminConfig/></ProtectedRoute>}/>

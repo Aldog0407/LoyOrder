@@ -67,3 +67,26 @@ test('logout 401 limpia un token ya inválido', async t => {
   try {await auth.iniciar({correo:'cliente@example.com',contrasena:'Ejemplo123!'}); await auth.cerrar(); assert.equal(auth.actual(),null);}
   finally {await auth.cerrar();}
 });
+
+
+test('consulta autenticada renueva un JWT vencido y una escritura rechazada se envía una sola vez', async t => {
+  const auth = await import('../src/auth.js?caso=peticionAutenticada');
+  const solicitudes = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    solicitudes.push({ url, init });
+    if (url.endsWith('/login')) return Response.json({ accessToken: 'anterior', refreshToken: 'renovacion', expiresAt: new Date(Date.now() - 1000).toISOString(), idleExpiresAt: new Date(Date.now() + 60000).toISOString() });
+    if (url.endsWith('/me')) return Response.json({ idUsuario: 1, rol: 'CLIENTE' });
+    if (url.endsWith('/renovar')) return Response.json({ accessToken: 'nuevo', refreshToken: 'rotado', expiresAt: new Date(Date.now() + 60000).toISOString() });
+    return Response.json({ title: 'Sesión inválida' }, { status: 401 });
+  });
+  await auth.iniciar({ correo: 'cliente@example.test', contrasena: 'Prueba123!' });
+  await assert.rejects(auth.peticionAutenticada('/pedidos/PRUEBA', null, 'GET', false), /Interactúa/);
+  assert.equal(solicitudes.filter(s => s.url.endsWith('/renovar')).length, 0);
+  assert.equal(auth.actual().idUsuario, 1);
+  await assert.rejects(auth.peticionAutenticada('/pedidos/PRUEBA/calificacion', { calificacion: 5 }), /Sesión inválida/);
+  assert.equal(solicitudes.filter(s => s.url.endsWith('/renovar')).length, 1);
+  const escrituras = solicitudes.filter(s => s.url.endsWith('/calificacion'));
+  assert.equal(escrituras.length, 1);
+  assert.equal(escrituras[0].init.headers.Authorization, 'Bearer nuevo');
+  assert.equal(auth.actual(), null);
+});

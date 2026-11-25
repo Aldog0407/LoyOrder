@@ -1,5 +1,5 @@
 // Las credenciales viven en memoria de esta pestaña.
-const base = (import.meta.env?.VITE_API_URL || 'http://localhost:5080/api/v1').replace(/\/$/, '');
+import { peticion } from './services/authApi.js';
 let sesion = null;
 let usuario = null;
 let temporizador;
@@ -13,30 +13,6 @@ let alAdvertir = () => {};
 export const actual = () => usuario;
 export function cuandoVenza(fn) { alVencer = fn; }
 export function cuandoSeAcerqueElVencimiento(fn) { alAdvertir = fn; }
-
-async function peticion(ruta, datos, metodo = 'POST', token) {
-  let respuesta;
-  try {
-    respuesta = await fetch(base + ruta, {
-      method: metodo,
-      headers: { ...(datos ? {'Content-Type':'application/json'} : {}), ...(token ? {Authorization:'Bearer '+token} : {}) },
-      ...(datos ? {body:JSON.stringify(datos)} : {}),
-      signal: AbortSignal.timeout(10000)
-    });
-  } catch {
-    throw new Error('No se pudo conectar con la API. Comprueba que esté encendida en el puerto 5080.');
-  }
-  const cuerpo = await respuesta.json().catch(() => null);
-  if (!respuesta.ok) {
-    const detalle = cuerpo?.errors ? Object.values(cuerpo.errors).flat().join(' ') : cuerpo?.title;
-    const error = new Error(respuesta.status === 429 ? 'Demasiados intentos. Espera un minuto.' : detalle || 'No se pudo completar la solicitud.');
-    error.status = respuesta.status;
-    error.codigo = cuerpo?.codigo;
-    error.idDesafio = cuerpo?.idDesafio;
-    throw error;
-  }
-  return cuerpo;
-}
 
 function finalizar(vencida) {
   const anterior = usuario;
@@ -121,4 +97,22 @@ export async function cerrar() {
     cerrando = false;
   }
   finalizar(false);
+}
+
+
+export async function peticionAutenticada(ruta, datos, metodo = 'POST', renovarSiHaceFalta = true) {
+  if (!sesion || cerrando) throw new Error('Inicia sesión para continuar.');
+  if (renovacion) await renovacion;
+  if (!sesion || cerrando) throw new Error('Inicia sesión para continuar.');
+  if (Date.parse(sesion.expiresAt) - Date.now() < 15000) {
+    if (!renovarSiHaceFalta) throw new Error('Interactúa con la página para actualizar el pedido.');
+    await renovar();
+  }
+  if (!sesion || cerrando) throw new Error('Inicia sesión para continuar.');
+  try {
+    return await peticion(ruta, datos, metodo, sesion.accessToken);
+  } catch (error) {
+    if (error.status === 401) finalizar(true);
+    throw error;
+  }
 }

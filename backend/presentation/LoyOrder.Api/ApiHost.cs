@@ -23,6 +23,8 @@ public static class ApiHost
         builder.Services.AddScoped<ICategoriaRepository, CategoriaRepository>();
         builder.Services.AddScoped<ConsultarCategorias>();
         builder.AgregarSincronizacion();
+        builder.Services.AddScoped<IPedidoClienteRepository, PedidoClienteRepository>();
+        builder.Services.AddScoped<PedidosCliente>();
         configurar?.Invoke(builder.Services);
         var app = builder.Build();
         app.UseExceptionHandler();

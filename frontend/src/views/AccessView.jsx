@@ -22,13 +22,21 @@ export default function AccessView({ mode }) {
     setEnviando(true);
     try {
       if (registro) {
-        await registrar({ nombre: datos.nombre, correo: datos.correo.trim(), contrasena: datos.contrasena, telefono: datos.telefono.trim() || null });
-        navigate('/login', { replace: true });
-        dispatch({ type: 'NOTIFY', message: 'Cuenta creada. Ya puedes iniciar sesión.' });
+        const cuenta = await registrar({ nombre: datos.nombre, correo: datos.correo.trim(), contrasena: datos.contrasena, telefono: datos.telefono.trim() || null });
+        if (cuenta.correoVerificado === false && cuenta.idDesafio) {
+          navigate('/verificar-correo', { replace: true, state: { idDesafio: cuenta.idDesafio } });
+        } else {
+          navigate('/login', { replace: true });
+          dispatch({ type: 'NOTIFY', message: 'Cuenta creada. Ya puedes iniciar sesión.' });
+        }
       } else {
         await iniciarSesion({ correo: datos.correo.trim(), contrasena: datos.contrasena });
       }
-    } catch (fallo) { setError(fallo.message); }
+    } catch (fallo) {
+      if (fallo.codigo === 'CORREO_NO_VERIFICADO' && fallo.idDesafio) {
+        navigate('/verificar-correo', { replace: true, state: { idDesafio: fallo.idDesafio } });
+      } else setError(fallo.message);
+    }
     finally { setEnviando(false); }
   }
   return <main className="container auth-wrap"><section className="auth-card" aria-labelledby="auth-title">
@@ -47,6 +55,7 @@ export default function AccessView({ mode }) {
         <button className="button primary full" type="submit">{enviando ? 'Procesando…' : registro ? 'Crear cuenta' : 'Iniciar sesión'}</button>
       </fieldset>
     </form>
+    {!registro && <Link className="text-button" to="/recuperar-contrasena">¿Olvidaste tu contraseña?</Link>}
     <Link className="button subtle full" to={registro ? '/login' : '/registro'}>{registro ? 'Ya tengo cuenta' : 'Crear una cuenta de cliente'}</Link>
   </section></main>;
 }

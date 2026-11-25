@@ -38,3 +38,18 @@ test('429 lee Retry-After', async () => {
   try { await assert.rejects(authApi.resendEmail({ idDesafio: 'xyz' }), err => err.status === 429 && err.retryAfter === 75); }
   finally { globalThis.fetch = previous; }
 });
+
+
+test('recuperación y restablecimiento conservan el contrato del backend', async t => {
+  const solicitudes = [];
+  t.mock.method(globalThis, 'fetch', async (url, opciones) => {
+    solicitudes.push({ url, datos: JSON.parse(opciones.body) });
+    return new Response(null, { status: 204 });
+  });
+  await authApi.requestPassword({ correo: 'cliente@example.test' });
+  await authApi.resetPassword({ token: 'secreto', nuevaContrasena: 'Nueva123!' });
+  assert.ok(solicitudes[0].url.endsWith('/contrasena/solicitar'));
+  assert.deepEqual(solicitudes[0].datos, { correo: 'cliente@example.test' });
+  assert.ok(solicitudes[1].url.endsWith('/contrasena/restablecer'));
+  assert.deepEqual(solicitudes[1].datos, { token: 'secreto', nuevaContrasena: 'Nueva123!' });
+});
