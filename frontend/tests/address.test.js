@@ -13,7 +13,7 @@ test('rejects legacy, missing and out-of-range coordinates', () => {
   assert.equal(normalizeAddress('short', pin), null);
 });
 test('delivery requires geographic pin, pickup does not', () => {
-  const state = { config: defaultConfig, cart: [{dishId:1,variant:'Clásica',quantity:1,price:149}], payment:'cash', address:'Calle de prueba 123', pin:null };
+  const state = { config: defaultConfig, cart: [{dishId:1,variantId:11,name:'Burger de la casa',variant:'Clásica',image:null,quantity:1,price:149}], payment:'cash', address:'Calle de prueba 123', pin:null };
   assert.ok(validateCheckout({...state,delivery:'domicilio'}));
   assert.equal(validateCheckout({...state,delivery:'domicilio',pin}), null);
   assert.equal(validateCheckout({...state,delivery:'local'}), null);

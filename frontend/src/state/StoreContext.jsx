@@ -1,7 +1,7 @@
 import { normalizeAddress } from '../utils/address.js';
 import { createContext, useContext, useEffect, useReducer } from 'react';
 import { defaultConfig } from '../config/defaults.js';
-import { getDish } from '../data/menu.js';
+import { esItemValido, mismaLinea } from '../utils/carrito.js';
 import { placeOrderState, enabledPayments, deliveryOptions } from '../utils/checkout.js';
 
 const STORAGE_KEY = 'loyorder-react-demo-v1';
@@ -13,6 +13,8 @@ function initialize() {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     const config = { ...defaultConfig, ...raw.config, shipping: { ...defaultConfig.shipping, ...raw.config?.shipping }, paymentMethods: { ...defaultConfig.paymentMethods, ...raw.config?.paymentMethods }, printer: { connected: false } };
     const restored = { ...initial, ...raw, config, configDraft: null, drawerOpen: false, toast: null };
+    // Carritos guardados con el menú de demostración (sin variantId) ya no son válidos con el catálogo real.
+    restored.cart = Array.isArray(restored.cart) ? restored.cart.filter(esItemValido) : [];
     Object.assign(restored, normalizeAddress(restored.address, restored.pin) ?? { address: '', pin: null });
     const methods = enabledPayments(restored);
     if (!methods.some(method => method.id === restored.payment)) restored.payment = methods[0]?.id ?? null;
@@ -37,12 +39,12 @@ function reducer(state, action) {
       return location ? { ...state, ...location } : state;
     }
     case 'ADD_ITEM': {
-      const dish = getDish(action.item.dishId);
-      if (!dish?.available || !dish.variants.includes(action.item.variant)) return state;
-      const index = state.cart.findIndex(item => item.dishId === dish.id && item.variant === action.item.variant);
+      // El artículo lo arma crearItemCarrito con el producto del catálogo (7.2.4).
+      if (!esItemValido(action.item)) return state;
+      const index = state.cart.findIndex(item => mismaLinea(item, action.item));
       const cart = [...state.cart];
-      if (index < 0) cart.push({ ...action.item, price: dish.price });
-      else cart[index] = { ...cart[index], quantity: cart[index].quantity + action.item.quantity };
+      if (index < 0) cart.push({ ...action.item });
+      else cart[index] = { ...cart[index], price: action.item.price, quantity: cart[index].quantity + action.item.quantity };
       return { ...state, cart };
     }
     case 'CHANGE_QUANTITY': {
@@ -57,8 +59,9 @@ function reducer(state, action) {
     case 'REORDER': {
       let cart = [...state.cart];
       for (const item of action.items) {
-        if (!getDish(item.dishId)?.available) continue;
-        const index = cart.findIndex(c => c.dishId === item.dishId && c.variant === item.variant);
+        // Pendiente 7.2.14: comprobar contra el catálogo actual que el artículo siga disponible y con el mismo precio.
+        if (!esItemValido(item)) continue;
+        const index = cart.findIndex(c => mismaLinea(c, item));
         if (index < 0) cart.push({ ...item });
         else cart = cart.map((c, i) => i === index ? { ...c, quantity: c.quantity + item.quantity } : c);
       }

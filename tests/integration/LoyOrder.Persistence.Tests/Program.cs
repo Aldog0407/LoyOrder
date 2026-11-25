@@ -86,8 +86,43 @@ try
         Igual(false, await Escalar<bool>($"SELECT has_table_privilege('loyorder_api', 'public.{tabla}', 'DELETE')"), $"sin DELETE en {tabla}");
     }
     Ok("permisos de loyorder_api");
-    Console.WriteLine($"\n{total} de 5 pruebas aprobadas.");
-    return total == 5 ? 0 : 1;
+
+    // 6. Catálogo del cliente (7.2.4) sobre lo que dejó la sincronización más casos armados con SQL
+    await Sql("""
+        INSERT INTO categoria (id_restaurante, id_loyverse, nombre) VALUES (1, 'c-hamb', 'Hamburguesas');
+        INSERT INTO categoria (id_restaurante, id_loyverse, nombre, activo) VALUES (1, 'c-vieja', 'Temporada', false);
+        INSERT INTO producto (id_categoria, id_loyverse, nombre, disponible) SELECT id_categoria, 'a-haw', 'Hawaiana', false FROM categoria WHERE id_loyverse = 'c-hamb';
+        INSERT INTO producto (id_categoria, id_loyverse, nombre) SELECT id_categoria, 'a-clasica', 'Clásica' FROM categoria WHERE id_loyverse = 'c-hamb';
+        INSERT INTO producto (id_categoria, id_loyverse, nombre) SELECT id_categoria, 'a-ponche', 'Ponche' FROM categoria WHERE id_loyverse = 'c-vieja';
+        INSERT INTO producto (id_categoria, id_loyverse, nombre) SELECT id_categoria, 'a-refresco', 'Refresco' FROM categoria WHERE id_loyverse = 'c-bebidas';
+        INSERT INTO variante_producto (id_producto, id_loyverse, nombre, precio, controla_inventario, existencias)
+        SELECT p.id_producto, v.id, v.nombre, v.precio, v.controla, v.existencias
+        FROM (VALUES ('a-haw', 'v-haw', NULL, 120, false, NULL), ('a-clasica', 'v-sencilla', 'Sencilla', 110, false, NULL),
+                     ('a-clasica', 'v-doble', 'Doble', 0, false, NULL), ('a-ponche', 'v-ponche', NULL, 30, false, NULL),
+                     ('a-refresco', 'v-cola2', 'Cola', 25, true, 48), ('a-refresco', 'v-limon2', 'Lima-limón', 22, true, 0))
+             AS v(prod, id, nombre, precio, controla, existencias)
+        JOIN producto p ON p.id_loyverse = v.prod;
+        INSERT INTO restaurante (nombre, horario_apertura, horario_cierre, costo_envio) VALUES ('Otro', '09:00', '22:00', 25);
+        INSERT INTO categoria (id_restaurante, id_loyverse, nombre) VALUES (2, 'c-otro', 'Otro restaurante');
+        INSERT INTO producto (id_categoria, id_loyverse, nombre) SELECT id_categoria, 'a-otro', 'Tacos' FROM categoria WHERE id_loyverse = 'c-otro';
+        INSERT INTO variante_producto (id_producto, id_loyverse, precio) SELECT id_producto, 'v-otro', 15 FROM producto WHERE id_loyverse = 'a-otro';
+        """);
+    var consulta = new ConsultarMenu(new MenuRepository(fuente), repo);
+    var menu = await consulta.EjecutarAsync(null, default);
+    Igual("Alitas|Bebidas|Hamburguesas|Sin categoría", string.Join("|", menu.Categorias.Select(c => c.Nombre)), "categorías en orden, inactiva oculta, Sin categoría al final");
+    Igual("Alitas BBQ:6 piezas|Refresco:Cola,Lima-limón|Clásica:Sencilla|Pay de queso:",
+        string.Join("|", menu.Categorias.SelectMany(c => c.Productos).Select(p => p.Nombre + ":" + string.Join(",", p.Variantes.Select(v => v.Nombre)))),
+        "productos y variantes vendibles (sin hawaiana, sin precio 0, sin variantes ni productos dados de baja)");
+    var refresco = menu.Categorias[1].Productos.Single();
+    Verdadero(refresco.Variantes.Single(v => v.Nombre == "Lima-limón").Agotado && !refresco.Agotado, "lima-limón agotada, refresco disponible");
+    Igual(25m, refresco.PrecioDesde, "precio desde");
+    Verdadero(menu.ActualizadoEn is not null, "fecha de la última sincronización de inventario");
+    Igual("Otro restaurante", (await consulta.EjecutarAsync(2, default)).Categorias.Single().Nombre, "restaurante configurado: solo su catálogo");
+    try { await consulta.EjecutarAsync(99, default); throw new Exception("No lanzó"); } catch (RestauranteNoConfiguradoException) { }
+    Igual(true, await Escalar<bool>("SELECT has_table_privilege('loyorder_api', 'public.variante_producto', 'SELECT')"), "SELECT para la API");
+    Ok("catálogo del cliente");
+    Console.WriteLine($"\n{total} de 6 pruebas aprobadas.");
+    return total == 6 ? 0 : 1;
 }
 catch (Exception e)
 {

@@ -2,7 +2,8 @@ import { isValidPin } from '../utils/address.js';
 import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
-import { getDish, money } from '../data/menu.js';
+import { money } from '../utils/formato.js';
+import ImagenPlatillo from './ImagenPlatillo.jsx';
 import { useStore } from '../state/StoreContext.jsx';
 import { checkoutTotals, createPlaceOrderAction, deliveryOptions, enabledPayments, validateCheckout } from '../utils/checkout.js';
 import LocationPicker from './LocationPicker.jsx';
@@ -50,10 +51,10 @@ export default function CartFlow({ onClose = () => {} }) {
     <div className="drawer-body cart-flow-body">
       {state.cart.length ? <>
         <div className="cart-lines">
-          {state.cart.map((item, index) => <div className="cart-line" key={`${item.dishId}:${item.variant}`}>
-            <div className="cart-emoji">{getDish(item.dishId)?.emoji}</div>
+          {state.cart.map((item, index) => <div className="cart-line" key={`${item.dishId}:${item.variantId}`}>
+            <div className="cart-emoji"><ImagenPlatillo src={item.image}/></div>
             <div className="cart-line-info">
-              <strong>{getDish(item.dishId)?.name}</strong><small>{item.variant}</small>
+              <strong>{item.name}</strong>{item.variant && <small>{item.variant}</small>}
               <span>{money(item.price * item.quantity)}</span>
               <div className="line-actions">
                 <button aria-label="Reducir cantidad" onClick={() => dispatch({ type: 'CHANGE_QUANTITY', index, delta: -1 })}>−</button>
@@ -82,7 +83,7 @@ export default function CartFlow({ onClose = () => {} }) {
             {method.icon} {method.label}
           </label>)}</div>
         </fieldset>
-        <p className="fine-print">Pago simulado; no se realizará ningún cargo. Catálogo local vinculado conceptualmente a Loyverse.</p>
+        <p className="fine-print">Pago simulado; no se realizará ningún cargo. Precios del catálogo sincronizado con Loyverse; las existencias se validan al confirmar.</p>
         {error && <p className="checkout-error" role="alert">{error}</p>}
       </> : <div className="cart-empty"><span>🛒</span><h3>Tu carrito está vacío</h3><p>Selecciona un platillo para empezar.</p><button className="button outline" onClick={() => { onClose(); navigate('/menu'); }}>Explorar menú</button></div>}
     </div>

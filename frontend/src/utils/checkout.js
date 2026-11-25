@@ -1,6 +1,6 @@
 import { isValidPin, normalizeAddress } from './address.js';
 import { paymentCatalog } from '../config/defaults.js';
-import { getDish } from '../data/menu.js';
+import { esItemValido } from './carrito.js';
 import { shippingFee } from './restaurant.js';
 
 export const deliveryOptions = [
@@ -21,12 +21,7 @@ export function enabledPayments(state) {
 
 export function validateCheckout(state) {
   if (!state.cart.length) return 'El carrito está vacío.';
-  if (state.cart.some(item => {
-    const dish = getDish(item.dishId);
-    return !dish?.available || !dish.variants.includes(item.variant) ||
-      !Number.isSafeInteger(item.quantity) || item.quantity < 1 ||
-      !Number.isFinite(item.price) || item.price < 0;
-  })) return 'Revisa los productos y cantidades del carrito.';
+  if (state.cart.some(item => !esItemValido(item))) return 'Revisa los productos y cantidades del carrito.';
   if (!deliveryOptions.some(option => option.id === state.delivery)) return 'Selecciona una modalidad de entrega.';
   if (state.delivery === 'domicilio' && (typeof state.address !== 'string' || state.address.trim().length < 8)) return 'Ingresa una dirección de entrega completa.';
   if (state.delivery === 'domicilio' && !isValidPin(state.pin)) return 'Selecciona la ubicación en el mapa.';

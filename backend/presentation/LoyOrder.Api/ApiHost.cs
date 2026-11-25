@@ -22,6 +22,8 @@ public static class ApiHost
         });
         builder.Services.AddScoped<ICategoriaRepository, CategoriaRepository>();
         builder.Services.AddScoped<ConsultarCategorias>();
+        builder.Services.AddScoped<IMenuRepository, MenuRepository>();
+        builder.Services.AddScoped<ConsultarMenu>();
         builder.AgregarSincronizacion();
         builder.Services.AddScoped<IPedidoClienteRepository, PedidoClienteRepository>();
         builder.Services.AddScoped<PedidosCliente>();

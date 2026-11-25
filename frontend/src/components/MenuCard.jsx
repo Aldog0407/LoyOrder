@@ -1,10 +1,14 @@
-import { money } from '../data/menu.js';
+import { money } from '../utils/formato.js';
+import ImagenPlatillo from './ImagenPlatillo.jsx';
 
 export default function MenuCard({ dish, onSelect }) {
-  return <article className={`dish-card ${dish.available ? '' : 'sold-out'}`}>
-    <div className="dish-art" style={{ '--art': dish.color }}><span aria-hidden="true">{dish.emoji}</span>{!dish.available && <span className="stock-label">Agotado</span>}</div>
-    <div className="dish-content"><div className="dish-meta"><span>{dish.category}</span><span className="rating">★ {dish.rating}</span></div>
-      <h3>{dish.name}</h3><p>{dish.description}</p><div className="dish-footer"><strong>{money(dish.price)}</strong><button disabled={!dish.available} onClick={() => onSelect(dish)}>{dish.available ? '+ Agregar' : 'No disponible'}</button></div>
+  const titulo = `platillo-${dish.id}`;
+  return <article className={`dish-card ${dish.agotado ? 'sold-out' : ''}`} aria-labelledby={titulo}>
+    <div className="dish-art"><ImagenPlatillo src={dish.imagenUrl}/>{dish.agotado && <span className="stock-label">Agotado</span>}</div>
+    <div className="dish-content"><div className="dish-meta"><span>{dish.categoria}</span></div>
+      <h3 id={titulo}>{dish.nombre}</h3>{dish.descripcion && <p>{dish.descripcion}</p>}
+      <div className="dish-footer"><strong>{dish.precioVariable && <small>Desde </small>}{money(dish.precioDesde)}</strong>
+        <button disabled={dish.agotado} aria-label={dish.agotado ? `${dish.nombre}: no disponible` : `Agregar ${dish.nombre}`} onClick={() => onSelect(dish)}>{dish.agotado ? 'No disponible' : '+ Agregar'}</button></div>
     </div>
   </article>;
 }

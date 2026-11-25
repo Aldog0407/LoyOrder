@@ -84,3 +84,20 @@
 .geocoding-status { margin: 8px 0 12px; color: #E8590C; font-size: 0.78rem; font-weight: 600; }
 .mapbox-address-modal .button:disabled { opacity: 0.55; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) { .geocoding-spinner { animation: none; transform: translateY(-50%); } }
+/* 7.2.4 · Catálogo desde la API: fotos de Loyverse, marcador sin imagen, variantes agotadas y estados de carga */
+.dish-art,.detail-art{background:var(--art,#FFF0DE)}
+.dish-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.dish-art:has(.dish-photo):before{display:none}
+.detail-art{position:relative;min-height:220px;overflow:hidden;display:grid;place-items:center}
+.detail-art .dish-placeholder{font-size:inherit}
+.cart-emoji{position:relative;overflow:hidden}
+.cart-emoji .dish-placeholder{font-size:38px}
+.dish-footer small,.detail-price small{font-size:12px;font-weight:700;color:var(--muted,#79736c)}
+.variant-name{flex:1}
+.variant-price{font-weight:800}
+.variant-option.agotada{opacity:.55;cursor:not-allowed;text-decoration:line-through}
+.variant-option.agotada .variant-price{text-decoration:none;color:#761111}
+.menu-status{padding:28px 0;color:var(--muted,#79736c);font-weight:700;display:grid;gap:12px;justify-items:start}
+.menu-status.error{color:#761111}
+.detail-description{white-space:pre-line}
+@media(max-width:760px){.detail-art{min-height:170px}}

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { defaultConfig } from '../src/config/defaults.js';
 import { checkoutTotals, createPlaceOrderAction, placeOrderState, validateCheckout } from '../src/utils/checkout.js';
 
-const state = (changes = {}) => ({ config: structuredClone(defaultConfig), cart: [{ dishId: 1, variant: 'Clásica', quantity: 2, price: 149 }], orders: [{ id: 'LY-1042' }], delivery: 'local', payment: 'cash', address: 'Calle de prueba 123', pin: { lng: -96.9271, lat: 19.5438 }, drawerOpen: true, ...changes });
+const state = (changes = {}) => ({ config: structuredClone(defaultConfig), cart: [{ dishId: 1, variantId: 11, name: 'Burger de la casa', variant: 'Clásica', image: null, quantity: 2, price: 149 }], orders: [{ id: 'LY-1042' }], delivery: 'local', payment: 'cash', address: 'Calle de prueba 123', pin: { lng: -96.9271, lat: 19.5438 }, drawerOpen: true, ...changes });
 
 test('local: folio único, envío cero y persistencia compatible', () => {
   const before = state();
@@ -50,6 +50,8 @@ test('reducer puro, acciones repetidas no duplican pedidos', () => {
   assert.notEqual(createPlaceOrderAction().folio, action.folio);
 });
 test('rechaza variantes inválidas y folio ausente', () => {
+  // 7.2.4: una línea sin variante del catálogo (formato del menú de demostración) se rechaza.
   assert.ok(validateCheckout(state({ cart: [{ dishId: 1, variant: 'No existe', quantity: 1, price: 149 }] })));
+  assert.ok(validateCheckout(state({ cart: [{ dishId: 1, variantId: 11, name: 'Burger', variant: 'Clásica', quantity: 1, price: 0 }] })));
   assert.equal(placeOrderState(state(), { type: 'PLACE_ORDER' }).orders.length, 1);
 });

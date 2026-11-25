@@ -15,6 +15,7 @@ var fake = new Repositorio();
 var reloj = new RelojPrueba();
 var origen = new OrigenPrueba();
 var catalogo = new CatalogoPrueba();
+var menu = new MenuPrueba();
 await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services =>
 {
     services.AddSingleton<ICategoriaRepository>(fake);
@@ -23,6 +24,7 @@ await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services 
     services.AddSingleton<TimeProvider>(reloj);
     services.AddSingleton<IOrigenCatalogo>(origen);
     services.AddSingleton<ICatalogoRepository>(catalogo);
+    services.AddSingleton<IMenuRepository>(menu);
 });
 // La suite combinada supera los 20 intentos por minuto del acceso normal.
 // Este servidor temporal comprueba permisos y flujos sin limitar la frecuencia.
@@ -69,6 +71,21 @@ try
     await Verificar("/api/v1/categorias?idRestaurante=1",500,"Ocurri");
     try { await new ConsultarCategorias(fake).EjecutarAsync(0,1,20,default); throw new Exception("Faltó validación de aplicación"); }
     catch(SolicitudInvalidaException) { Console.WriteLine($"OK {++total}: validación de aplicación"); }
+    // 7.2.4 · catálogo por categorías: el restaurante lo resuelve la API, no se pide en la URL
+    fake.Fallo = 0;
+    await Verificar("/api/v1/catalogo", 200, "\"id\":2,\"nombre\":\"Lima-lim");
+    await Verificar("/api/v1/catalogo", 200, "\"precio\":22,\"agotado\":true");
+    await Verificar("/api/v1/catalogo?idRestaurante=2", 200, "Refresco");
+    if (menu.Consultados.Distinct().Single() != 1) throw new Exception("El catálogo debe usar el restaurante resuelto por la API");
+    Console.WriteLine($"OK {++total}: el catálogo ignora idRestaurante de la URL");
+    menu.Fallo = 1;
+    await Verificar("/api/v1/catalogo", 503);
+    menu.Fallo = 2;
+    await Verificar("/api/v1/catalogo", 500, "Ocurri");
+    menu.Fallo = 0;
+    catalogo.Restaurante = null;
+    await Verificar("/api/v1/catalogo", 409, "restaurante");
+    catalogo.Restaurante = new(1,"t1",2);
     await VerificarAcceso();
     Console.WriteLine($"{total} pruebas aprobadas.");
 }
@@ -89,6 +106,7 @@ async Task VerificarAcceso()
     client.DefaultRequestHeaders.Authorization=null;
     await Check(HttpMethod.Get,"/api/v1/auth/me",401);
     await Check(HttpMethod.Get,"/api/v1/categorias?idRestaurante=1",401);
+    await Check(HttpMethod.Get,"/api/v1/catalogo",401);
     await Check(HttpMethod.Post,"/api/v1/auth/registro",201,new{nombre="Nuevo",correo="nuevo@prueba.test",contrasena="Prueba12345!",telefono="123"});
     await Check(HttpMethod.Post,"/api/v1/auth/registro",409,new{nombre="Nuevo",correo="NUEVO@prueba.test",contrasena="Prueba12345!"});
     await Check(HttpMethod.Post,"/api/v1/auth/registro",400,new{nombre="Nuevo",correo="otro@prueba.test",contrasena="Prueba12345!",rol="ADMINISTRADOR"});
@@ -122,6 +140,7 @@ async Task VerificarAcceso()
         client.DefaultRequestHeaders.Authorization=new("Bearer",await Login(correo));
         await Check(HttpMethod.Get,"/api/v1/auth/me",200);
         await Check(HttpMethod.Get,"/api/v1/categorias?idRestaurante=1",403);
+        await Check(HttpMethod.Get,"/api/v1/catalogo",403);
     }
     // 7.2.3 · CU-10: solo el administrador puede sincronizar y ver el historial
     client.DefaultRequestHeaders.Authorization=null;
@@ -305,5 +324,20 @@ sealed class PedidosPrueba : IPedidoClienteRepository
     public async Task CalificarAsync(long idUsuario, string folio, short calificacion, string? comentario, CancellationToken ct)
     {
         if (await ConsultarAsync(idUsuario, folio, ct) is null) throw new PedidoNoEncontradoException();
+    }
+}
+
+sealed class MenuPrueba : IMenuRepository
+{
+    public int Fallo { get; set; }
+    public List<long> Consultados { get; } = [];
+    public Task<IReadOnlyList<FilaMenu>> ListarAsync(long idRestaurante, CancellationToken ct)
+    {
+        Consultados.Add(idRestaurante);
+        if (Fallo == 1) throw new DependenciaNoDisponibleException();
+        if (Fallo == 2) throw new InvalidOperationException("DETALLE_INTERNO_NO_PUBLICAR");
+        return Task.FromResult<IReadOnlyList<FilaMenu>>([
+            new(1, "Bebidas", 1, "Refresco", null, null, 1, "Cola", 25m, true, 48m),
+            new(1, "Bebidas", 1, "Refresco", null, null, 2, "Lima-limón", 22m, true, 0m)]);
     }
 }

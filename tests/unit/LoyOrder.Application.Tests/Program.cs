@@ -122,7 +122,7 @@ static class Datos
 
 // ------------------------------------------------------------------ pruebas
 
-static class Pruebas
+static partial class Pruebas
 {
     public static async Task Prueba_PrimeraSincronizacionTraeTodoElCatalogo()
     {
