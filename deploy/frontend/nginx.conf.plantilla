@@ -1,0 +1,42 @@
+# LoyOrder - Nginx del equipo de frontend (actividad 7.1.7).
+# preparar_frontend.ps1 reemplaza {{IP_API}} y {{PUERTO}} y guarda este archivo como conf\nginx.conf.
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile      on;
+    server_tokens off;
+
+    server {
+        listen       {{PUERTO}};
+        server_name  _;
+
+        # Compilación de React (npm run build) copiada en html\loyorder
+        root   html/loyorder;
+        index  index.html;
+
+        # La API se publica en el mismo origen: el navegador no necesita CORS
+        location /api/ {
+            proxy_pass         http://{{IP_API}}:5080;
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout    30s;
+        }
+
+        location /health/ {
+            proxy_pass         http://{{IP_API}}:5080;
+        }
+
+        # Rutas de React Router (/login, /menu, /admin...) regresan index.html
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}

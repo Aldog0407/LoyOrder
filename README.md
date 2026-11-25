@@ -11,6 +11,7 @@ Permitir a clientes realizar pedidos y al personal del restaurante administrarlo
 - `backend/`: API REST organizada por capas.
 - `database/`: scripts y cambios de base de datos.
 - `docs/`: documentación y diagramas del proyecto.
+- `deploy/`: scripts de despliegue en 3 equipos (BD, API y frontend) por VPN Tailscale. La guía está en `docs/DESPLIEGUE.md`.
 - `tests/`: pruebas de la aplicación.
 
 Backend confirmado: ASP.NET Core / C# (.NET 10), con PostgreSQL. Consulta `backend/README.md` para compilar, probar y ejecutar la base de la API (7.1.3). Las decisiones pendientes están en `docs/DECISIONES_TECNICAS.md`.
