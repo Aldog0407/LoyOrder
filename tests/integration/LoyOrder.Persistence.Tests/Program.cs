@@ -24,8 +24,11 @@ var cadena = new NpgsqlConnectionStringBuilder(admin) { Database = Base }.Connec
 await using var fuente = NpgsqlDataSource.Create(cadena);
 try
 {
+    // LoyOrderObjetos_y_Permisos.sql da CONNECT sobre la base "loyorder" por nombre; aquí se aplica a la base temporal
+    // para que la prueba no dependa de que exista una base loyorder en la máquina.
     foreach (var script in new[] { "LoyOrderEsquema.sql", "LoyOrderObjetos_y_Permisos.sql", "LoyOrderAutenticacionCorreo.sql", "LoyOrderSincronizacion.sql" })
-        await Sql(File.ReadAllText(Path.Combine(raiz, "database", "scripts", script)));
+        await Sql(File.ReadAllText(Path.Combine(raiz, "database", "scripts", script))
+            .Replace("ON DATABASE loyorder TO", $"ON DATABASE {Base} TO"));
     await Sql("INSERT INTO restaurante (nombre, horario_apertura, horario_cierre, costo_envio) VALUES ('Prueba', '09:00', '22:00', 25)");
 
     var repo = new CatalogoRepository(fuente);
@@ -110,9 +113,13 @@ try
     var consulta = new ConsultarMenu(new MenuRepository(fuente), repo);
     var menu = await consulta.EjecutarAsync(null, default);
     Igual("Alitas|Bebidas|Hamburguesas|Sin categoría", string.Join("|", menu.Categorias.Select(c => c.Nombre)), "categorías en orden, inactiva oculta, Sin categoría al final");
+    // El INSERT ... SELECT de arriba no garantiza en qué orden se asignan los id: se comparan los nombres ordenados
+    // y, aparte, que las variantes salgan en el orden de su id (el orden en que la sincronización las guarda).
     Igual("Alitas BBQ:6 piezas|Refresco:Cola,Lima-limón|Clásica:Sencilla|Pay de queso:",
-        string.Join("|", menu.Categorias.SelectMany(c => c.Productos).Select(p => p.Nombre + ":" + string.Join(",", p.Variantes.Select(v => v.Nombre)))),
+        string.Join("|", menu.Categorias.SelectMany(c => c.Productos).Select(p => p.Nombre + ":" + string.Join(",", p.Variantes.Select(v => v.Nombre).Order(StringComparer.Ordinal)))),
         "productos y variantes vendibles (sin hawaiana, sin precio 0, sin variantes ni productos dados de baja)");
+    Verdadero(menu.Categorias.SelectMany(c => c.Productos).All(p => p.Variantes.Select(v => v.Id).SequenceEqual(p.Variantes.Select(v => v.Id).Order())),
+        "variantes en el orden de su id");
     var refresco = menu.Categorias[1].Productos.Single();
     Verdadero(refresco.Variantes.Single(v => v.Nombre == "Lima-limón").Agotado && !refresco.Agotado, "lima-limón agotada, refresco disponible");
     Igual(25m, refresco.PrecioDesde, "precio desde");
