@@ -44,7 +44,7 @@ export default function CartFlow({ onClose = () => {} }) {
   const chosenPayment = paymentOptions.find(method => method.id === state.payment);
   const validacion = validateCheckout(state);
   const direccionIncompleta = state.delivery === 'domicilio' && (!state.checkoutAddress?.calle?.trim() || !state.checkoutAddress?.numero?.trim());
-  const error = state.pedidoPendiente ? null : opcionesError || (!opcionesListas ? 'Consultando opciones del restaurante…' : !state.checkoutOptions?.abierto ? 'El restaurante está cerrado.' : validacion || (direccionIncompleta ? 'Completa la calle y el número de entrega.' : null));
+  const error = state.pedidoPendiente ? null : opcionesError || (!opcionesListas ? 'Consultando opciones del restaurante…' : !state.checkoutOptions?.abierto ? 'El restaurante está cerrado.' : validacion || (direccionIncompleta ? 'Abre «Cambiar →» y completa la calle y el número dentro del mapa.' : null));
 
   async function placeOrder() {
     if (submitting.current) return;
@@ -124,10 +124,6 @@ export default function CartFlow({ onClose = () => {} }) {
           <div><small>Dirección</small><strong>{state.address || 'Sin dirección'}</strong>{isValidPin(state.pin) && <small>{state.pin.lat.toFixed(5)}, {state.pin.lng.toFixed(5)}</small>}</div>
           <button onClick={() => setMapOpen(true)}>{isValidPin(state.pin) ? 'Cambiar →' : 'Seleccionar en mapa →'}</button>
         </div>}
-        {state.delivery === 'domicilio' && <div className="address-box"><div>
-          <label>Calle<input maxLength={150} value={state.checkoutAddress?.calle ?? ''} onChange={e => dispatch({ type: 'SET_CHECKOUT_ADDRESS', campo: 'calle', valor: e.target.value })}/></label>
-          <label>Número exterior o S/N<input maxLength={20} value={state.checkoutAddress?.numero ?? ''} onChange={e => dispatch({ type: 'SET_CHECKOUT_ADDRESS', campo: 'numero', valor: e.target.value })}/></label>
-        </div></div>}
         <fieldset className="checkout-group">
           <legend>Método de pago</legend>
           <div className="choice-grid">{paymentOptions.map(method => <label className={`choice ${state.payment === method.id ? 'chosen' : ''}`} key={method.id}>

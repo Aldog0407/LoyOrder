@@ -129,3 +129,23 @@
   .pedido-rating-field select { max-width: none; }
   .pedido-rating-fields > .button { width: 100%; }
 }
+
+/* Req. 7.2.7 — Mapbox address autocomplete. */
+.address-search{position:relative;z-index:3;margin-bottom:14px}
+.address-search .field-label{margin-top:10px}
+.address-suggestions{position:relative;z-index:4;margin-top:5px;max-height:220px;overflow-y:auto;background:#FFFFFF;border:1px solid #d9d1c6;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.16)}
+.address-suggestion{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:11px 14px;background:#FFFFFF;border:0;border-bottom:1px solid #f1eae1;cursor:pointer;text-align:left;font:inherit;color:#1E1E1E}
+.address-suggestion:last-child{border-bottom:0}
+.address-suggestion:hover,.address-suggestion:focus-visible,.address-suggestion.active{background:#FFF0E5;outline:none}
+.address-suggestion-title{font-size:13px;font-weight:700}
+.address-suggestion-detail{font-size:11px;color:#6B655E}
+.address-suggestions-message{padding:12px;margin:0;font-size:12px;color:#5A534D}
+@media(max-width:760px){.address-suggestions{max-height:160px}.mapbox-address-modal .address-search{margin-bottom:10px}}
+
+/* Req. 7.2.7 correction: all structured address fields are inside the map modal. */
+.mapbox-address-modal .map-address-fields{display:grid;gap:12px;margin-top:14px}
+.mapbox-address-modal .map-address-fields label{display:grid;gap:6px;font-size:13px;font-weight:700;color:var(--text)}
+.mapbox-address-modal .map-address-fields-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
+.mapbox-address-modal .map-address-fields input{width:100%;min-width:0;box-sizing:border-box;padding:12px;border:1px solid #d9d1c6;border-radius:8px;background:#fff;font:inherit;font-weight:400}
+.mapbox-address-modal .map-address-fields input:focus-visible{outline:2px solid #E8590C;outline-offset:2px}
+@media(max-width:600px){.mapbox-address-modal .map-address-fields-row{grid-template-columns:1fr}}
