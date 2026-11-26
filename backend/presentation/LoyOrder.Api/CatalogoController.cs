@@ -9,6 +9,11 @@ namespace LoyOrder.Api;
 /// <c>Sincronizacion:IdRestaurante</c> o, si no está configurado, el primero registrado (igual que la 7.2.3).
 /// 200 con el menú (lista vacía si aún no se sincroniza); 409 si no hay restaurante; 503 sin base de datos.
 /// </summary>
+[ProducesResponseType(typeof(ErrorApi),401)]
+[ProducesResponseType(typeof(ErrorApi),403)]
+[ProducesResponseType(typeof(ErrorApi),409)]
+[ProducesResponseType(typeof(ErrorApi),502)]
+[ProducesResponseType(typeof(ErrorApi),503)]
 [ApiController, Route("api/v1/catalogo"), Authorize(Roles = Roles.Cliente)]
 public sealed class CatalogoController(ConsultarMenu consulta, IConfiguration configuracion) : ControllerBase
 {

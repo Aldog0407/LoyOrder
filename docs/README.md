@@ -43,3 +43,8 @@ Se integró el registro persistido de ventas Entregadas con Loyverse, con reclam
 Aldo confirmó el recorrido completo por la pantalla de operación y el recibo de Loyverse en su PostgreSQL local durante la prueba del 26 de noviembre. La cuenta de operador se creó mediante registro y verificación y luego se asignó al restaurante desde pgAdmin.
 
 Aldo confirmó también la recepción en Gmail de los avisos del pedido y los cambios de estado en su recorrido local.
+
+
+## Documentación de la API disponible
+
+Swagger está disponible en `/swagger` y OpenAPI en `/openapi/v1.json` al ejecutar en Development. Ver [actividad 7.4.1](ACTIVIDAD_7_4_1.md). Las menciones anteriores a Swagger pendiente corresponden al estado previo.

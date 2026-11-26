@@ -7,6 +7,7 @@ public static class ApiHost
     public static WebApplication Crear(string[] args, Action<IServiceCollection>? configurar = null)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AgregarDocumentacion();
         builder.AgregarAcceso();
         builder.AgregarCorreoAutenticacion();
         builder.Services.AddControllers().AddApplicationPart(typeof(CategoriasController).Assembly);
@@ -50,7 +51,8 @@ public static class ApiHost
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
-        app.MapGet("/health/live", () => Results.Ok(new { estado = "Activo" }));
+        app.MapearDocumentacion();
+        app.MapGet("/health/live", () => Results.Ok(new { estado = "Activo" })).Produces<EstadoApi>(200);
         app.MapGet("/health/ready", async (ICategoriaRepository repo, HttpContext context, CancellationToken ct) =>
         {
             var desafios = context.RequestServices.GetService<IDesafioCorreoRepository>();
@@ -59,7 +61,7 @@ public static class ApiHost
                 && (!ventasHabilitadas || await context.RequestServices.GetRequiredService<IVentaRepository>().DisponibleAsync(ct))
                 ? Results.Ok(new { estado = "Disponible" })
                 : Results.Problem(statusCode: 503, title: "Base de datos no disponible o esquema no preparado.");
-        });
+        }).Produces<EstadoApi>(200).ProducesProblem(503);
         return app;
     }
 }

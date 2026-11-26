@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using System.Net.Http.Json;
 using System.Net;
 using System.Text.Json;
@@ -16,8 +17,9 @@ var reloj = new RelojPrueba();
 var origen = new OrigenPrueba();
 var catalogo = new CatalogoPrueba();
 var menu = new MenuPrueba();
-await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services =>
+await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60", "--CorreoAutenticacion:Habilitado=false", "--Notificaciones:Habilitado=false", "--Ventas:Habilitado=false", "--Sincronizacion:Automatica=false"], services =>
 {
+    services.AddDataProtection().UseEphemeralDataProtectionProvider();
     services.AddSingleton<ICategoriaRepository>(fake);
     services.AddSingleton<IPedidoClienteRepository>(new PedidosPrueba());
     services.AddSingleton<IHistorialPedidoRepository>(new PedidosPrueba());
@@ -62,6 +64,39 @@ async Task Verificar(string ruta, int esperado, string? contenido = null)
 }
 try
 {
+    using(var respuestaDoc=await client.GetAsync("/openapi/v1.json")) {
+        respuestaDoc.EnsureSuccessStatusCode();
+        using var documento=JsonDocument.Parse(await respuestaDoc.Content.ReadAsStringAsync());
+        var raizDoc=documento.RootElement;var rutas=raizDoc.GetProperty("paths");
+        if(!raizDoc.GetProperty("openapi").GetString()!.StartsWith("3.") || !raizDoc.GetProperty("components").GetProperty("securitySchemes").TryGetProperty("Bearer",out _))
+            throw new Exception("Falta versión OpenAPI o esquema Bearer");
+        var loginDoc=rutas.GetProperty("/api/v1/auth/login").GetProperty("post");
+        if(loginDoc.TryGetProperty("security",out var loginSeguridad)&&loginSeguridad.GetArrayLength()>0) throw new Exception("El login exige un JWT en la documentación");
+        var operadorDoc=rutas.GetProperty("/api/v1/operacion/pedidos").GetProperty("get");
+        if(!operadorDoc.GetProperty("security")[0].TryGetProperty("Bearer",out _) || !operadorDoc.GetProperty("description").GetString()!.Contains("OPERADOR"))
+            throw new Exception("La documentación omitió la autorización del operador");
+        var creadoDoc=rutas.GetProperty("/api/v1/pedidos").GetProperty("post").GetProperty("responses").GetProperty("201");
+        if(!creadoDoc.GetProperty("content").GetProperty("application/json").TryGetProperty("schema",out _)) throw new Exception("Falta esquema del pedido creado");
+        var schemas=raizDoc.GetProperty("components").GetProperty("schemas");
+        if(!schemas.GetProperty("SesionApi").GetProperty("properties").TryGetProperty("refreshToken",out _) || !schemas.TryGetProperty("SolicitudPedido",out _))
+            throw new Exception("Faltan contratos de sesión o checkout");
+        if(!rutas.TryGetProperty("/api/v1/operacion/pedidos/{folio}/venta/reintentar",out _)) throw new Exception("Falta documentar reintento de venta");
+        Console.WriteLine($"OK {++total}: OpenAPI generado con contratos, respuestas y roles correctos");
+    }
+    await Verificar("/swagger/index.html",200,"swagger-ui");
+    var ambienteAnterior=Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+    Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT","Production");
+    try {
+        await using var produccion=ApiHost.Crear(["--Auth:SigningKey="+Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)),
+            "--CorreoAutenticacion:Habilitado=false","--Notificaciones:Habilitado=false","--Ventas:Habilitado=false","--Sincronizacion:Automatica=false"], servicios=>servicios.AddDataProtection().UseEphemeralDataProtectionProvider());
+        produccion.Urls.Add("http://127.0.0.1:0");await produccion.StartAsync();
+        using var clienteProd=new HttpClient { BaseAddress=new Uri(produccion.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+        foreach(var rutaDoc in new[] {"/openapi/v1.json","/swagger/index.html"}) {
+            using var respuesta=await clienteProd.GetAsync(rutaDoc);
+            if(respuesta.StatusCode!=HttpStatusCode.NotFound) throw new Exception("Se publicó documentación en Production");
+            Console.WriteLine($"OK {++total}: {rutaDoc} deshabilitado en Production");
+        }
+    } finally { Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT",ambienteAnterior); }
     await Verificar("/health/live", 200);
     await Verificar("/health/ready", 200);
     await Verificar("/api/v1/categorias?idRestaurante=1", 200, "Bebidas");

@@ -172,3 +172,8 @@ El checkout, historial y panel del operador utilizan pedidos persistidos mediant
 ## Registro de ventas al cierre
 
 Implementada la actividad 7.2.13 con registro pendiente, confirmación y reconciliación. Aplicar `LoyOrderVentas.sql` y habilitar `Ventas__Habilitado` para procesar pedidos Entregados. El operador ve el estado y el recibo. Ver [contrato y evidencia](../docs/ACTIVIDAD_7_2_13.md), incluidos los requisitos del costo de envío y las limitaciones de reintento.
+
+
+## Documentación de la API disponible
+
+Swagger está disponible en `/swagger` y OpenAPI en `/openapi/v1.json` al ejecutar en Development. Ver [actividad 7.4.1](../docs/ACTIVIDAD_7_4_1.md). Las menciones anteriores a Swagger pendiente corresponden al estado previo.

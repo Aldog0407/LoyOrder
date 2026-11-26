@@ -14,10 +14,21 @@ public sealed record Registro([Required,StringLength(100)]string Nombre,[Require
 public sealed record Inicio([Required,EmailAddress,StringLength(150)]string Correo,[Required,StringLength(128)]string Contrasena);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record RenovarSesion([Required, StringLength(97, MinimumLength = 97)] string RefreshToken);
+[ProducesResponseType(typeof(ErrorApi),400)]
+[ProducesResponseType(typeof(ErrorApi),401)]
+[ProducesResponseType(typeof(ErrorApi),403)]
+[ProducesResponseType(typeof(ErrorApi),404)]
+[ProducesResponseType(typeof(ErrorApi),409)]
+[ProducesResponseType(typeof(ErrorApi),429)]
+[ProducesResponseType(typeof(ErrorApi),500)]
+[ProducesResponseType(typeof(ErrorApi),503)]
 [ApiController,Route("api/v1/auth")]
 public sealed class AccesoController(Acceso acceso,Tokens tokens,Sesiones sesiones,IUsuarioRepository usuarios,
     CorreoAcceso? correo = null) : ControllerBase
 {
+    [Microsoft.AspNetCore.Http.EndpointSummary("Registro de cliente y desafío de verificación")]
+    [ProducesResponseType(typeof(RegistroApi), 201)]
+    [Microsoft.AspNetCore.Http.EndpointDescription("La contraseña admite 8–128 caracteres y requiere al menos un símbolo que no sea espacio. El registro público crea únicamente CLIENTE. Con correo habilitado se devuelve idDesafio y es necesario verificarlo antes de iniciar sesión.")]
     [HttpPost("registro"),AllowAnonymous,EnableRateLimiting("acceso")]
     public async Task<IActionResult> Registrar(Registro datos,CancellationToken ct)
     {
@@ -29,6 +40,8 @@ public sealed class AccesoController(Acceso acceso,Tokens tokens,Sesiones sesion
         var usuario=await acceso.RegistrarAsync(datos.Nombre,datos.Correo,datos.Contrasena,datos.Telefono,ct);
         return StatusCode(201,new { usuario.IdUsuario,usuario.Nombre,usuario.Correo,usuario.Rol });
     }
+    [Microsoft.AspNetCore.Http.EndpointSummary("Iniciar sesión y obtener tokens de LoyOrder")]
+    [ProducesResponseType(typeof(SesionApi), 200)]
     [HttpPost("login"),AllowAnonymous,EnableRateLimiting("acceso")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> Iniciar(Inicio datos,CancellationToken ct)
@@ -42,6 +55,8 @@ public sealed class AccesoController(Acceso acceso,Tokens tokens,Sesiones sesion
         }
         return Ok(tokens.Emitir(usuario));
     }
+    [Microsoft.AspNetCore.Http.EndpointSummary("Renovar la sesión con su refreshToken")]
+    [ProducesResponseType(typeof(SesionApi), 200)]
     [HttpPost("renovar"), AllowAnonymous, EnableRateLimiting("renovacion")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> Renovar(RenovarSesion datos, CancellationToken ct)
@@ -57,12 +72,16 @@ public sealed class AccesoController(Acceso acceso,Tokens tokens,Sesiones sesion
         var credencial = sesiones.Renovar(datos.RefreshToken);
         return credencial is null ? Unauthorized() : Ok(tokens.Emitir(usuario!, credencial));
     }
+    [Microsoft.AspNetCore.Http.EndpointSummary("Consultar la identidad de la sesión")]
+    [ProducesResponseType(typeof(IdentidadApi), 200)]
     [HttpGet("me"),Authorize]
     public async Task<IActionResult> Actual(CancellationToken ct)
     {
         var usuario=(await usuarios.PorIdAsync(long.Parse(User.FindFirstValue("sub")!),ct))!;
         return Ok(new {usuario.IdUsuario,usuario.Nombre,usuario.Correo,usuario.Rol});
     }
+    [Microsoft.AspNetCore.Http.EndpointSummary("Cerrar la sesión actual o la indicada por refreshToken")]
+    [ProducesResponseType(204)]
     [HttpPost("logout"), AllowAnonymous, EnableRateLimiting("renovacion")]
     public IActionResult Cerrar([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RenovarSesion? datos)
     {

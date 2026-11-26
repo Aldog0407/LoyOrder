@@ -69,6 +69,11 @@ public sealed class SincronizacionProgramada(IServiceScopeFactory scopes, IConfi
 }
 
 /// <summary>"Sincronizar ahora" y el historial del panel del administrador (CU-10).</summary>
+[ProducesResponseType(typeof(ErrorApi),401)]
+[ProducesResponseType(typeof(ErrorApi),403)]
+[ProducesResponseType(typeof(ErrorApi),409)]
+[ProducesResponseType(typeof(ErrorApi),502)]
+[ProducesResponseType(typeof(ErrorApi),503)]
 [ApiController, Route("api/v1/sincronizacion"), Authorize(Roles = Roles.Administrador)]
 public sealed class SincronizacionController(SincronizarCatalogo sincronizar, ICatalogoRepository repositorio,
     IConfiguration configuracion) : ControllerBase
