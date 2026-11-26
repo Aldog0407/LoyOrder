@@ -13,8 +13,14 @@ namespace LoyOrder.Api;
 public sealed record CalificarPedido([Range(1, 5)] short Calificacion, [StringLength(2000)] string? Comentario);
 
 [ApiController, Authorize(Roles = Roles.Cliente), Route("api/v1/pedidos")]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class PedidosClienteController(PedidosCliente pedidos) : ControllerBase
 {
+    [HttpGet]
+    public async Task<IActionResult> Historial([FromServices] HistorialPedidos consulta,
+        [FromQuery] int pagina = 1, [FromQuery] int tamano = 20, CancellationToken ct = default) =>
+        Ok(await consulta.ConsultarAsync(IdUsuario, pagina, tamano, ct));
+
     [HttpGet("{folio}")]
     public async Task<IActionResult> Consultar(string folio, CancellationToken ct) =>
         Ok(await pedidos.ConsultarAsync(IdUsuario, folio, ct));

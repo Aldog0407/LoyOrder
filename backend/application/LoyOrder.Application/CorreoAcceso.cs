@@ -24,7 +24,7 @@ public interface IDesafioCorreoRepository
 
 public abstract record TrabajoCorreo;
 public sealed record SolicitudRecuperacion(string Correo) : TrabajoCorreo;
-public sealed record MensajeCorreo(string Destino, string Asunto, string Texto) : TrabajoCorreo;
+public sealed record MensajeCorreo(string Destino, string Asunto, string Texto, string? IdMensaje = null) : TrabajoCorreo;
 public interface IColaCorreo
 {
     bool IntentarEncolar(TrabajoCorreo trabajo);

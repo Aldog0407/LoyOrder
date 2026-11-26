@@ -1,3 +1,4 @@
+import { guardarPedidoConfirmado } from '../utils/pedido-servidor.js';
 import { normalizeAddress } from '../utils/address.js';
 import { createContext, useContext, useEffect, useReducer } from 'react';
 import { defaultConfig } from '../config/defaults.js';
@@ -6,13 +7,13 @@ import { placeOrderState, enabledPayments, deliveryOptions, firmaCheckout } from
 
 const STORAGE_KEY = 'loyorder-react-demo-v1';
 const seedOrders = [{ id: 'LY-1042', date: '03 nov 2026', items: [{ dishId: 2, variant: 'Mediana', price: 189, quantity: 1 }], total: 189, delivery: 'local', payment: 'cash', status: 3, rated: false }];
-const initial = { config: defaultConfig, cart: [], orders: seedOrders, activeOrderId: null, delivery: 'local', payment: 'cash', address: '', pin: null, drawerOpen: false, toast: null };
+const initial = { config: defaultConfig, cart: [], orders: seedOrders, activeOrderId: null, checkoutOptions: null, checkoutAddress: null, pedidoPendiente: null, confirmandoPedido: false, delivery: 'local', payment: 'cash', address: '', pin: null, drawerOpen: false, toast: null };
 
 function initialize() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     const config = { ...defaultConfig, ...raw.config, shipping: { ...defaultConfig.shipping, ...raw.config?.shipping }, paymentMethods: { ...defaultConfig.paymentMethods, ...raw.config?.paymentMethods }, printer: { connected: false } };
-    const restored = { ...initial, ...raw, config, configDraft: null, drawerOpen: false, toast: null };
+    const restored = { ...initial, ...raw, config, checkoutOptions: null, confirmandoPedido: false, configDraft: null, drawerOpen: false, toast: null };
     // Carritos guardados con el menú de demostración (sin variantId) ya no son válidos con el catálogo real.
     restored.cart = Array.isArray(restored.cart) ? restored.cart.filter(esItemValido) : [];
     Object.assign(restored, normalizeAddress(restored.address, restored.pin) ?? { address: '', pin: null });
@@ -25,7 +26,7 @@ function initialize() {
 
 function reducer(state, action) {
   switch (action.type) {
-    case 'CLEAR_SESSION_DATA': return { ...state, configDraft: null, cart: [], orders: [], activeOrderId: null, address: '', pin: null, delivery: 'local', drawerOpen: false, toast: null };
+    case 'CLEAR_SESSION_DATA': return { ...state, checkoutOptions: null, checkoutAddress: null, pedidoPendiente: null, confirmandoPedido: false, configDraft: null, cart: [], orders: [], activeOrderId: null, address: '', pin: null, delivery: 'local', drawerOpen: false, toast: null };
     case 'OPEN_CART': return { ...state, drawerOpen: true };
     case 'CLOSE_CART': return { ...state, drawerOpen: false };
     case 'NOTIFY': return { ...state, toast: { id: Date.now(), message: action.message, error: !!action.error } };
@@ -64,6 +65,12 @@ function reducer(state, action) {
       return { ...state, cart: action.items.map(item => ({ ...item })),
         toast: { id: 'carrito-actualizado', message: 'Carrito actualizado. Revisa el total antes de confirmar.', error: false } };
     }
+    case 'SET_CHECKOUT_OPTIONS': return { ...state, checkoutOptions: action.opciones,
+      payment: action.opciones.metodosPago.some(p => String(p.id) === state.payment) ? state.payment : String(action.opciones.metodosPago[0]?.id ?? '') };
+    case 'SET_CHECKOUT_ADDRESS': return { ...state, checkoutAddress: { ...state.checkoutAddress, [action.campo]: action.valor } };
+    case 'SET_CONFIRMING_ORDER': return { ...state, confirmandoPedido: action.valor };
+    case 'SET_PENDING_ORDER': return { ...state, pedidoPendiente: action.pendiente };
+    case 'ORDER_SAVED': return guardarPedidoConfirmado(state, action);
     case 'PLACE_ORDER': return placeOrderState(state, action);
     case 'ADVANCE_ORDER': return { ...state, orders: state.orders.map(o => o.id === action.id ? { ...o, status: Math.min(o.status + 1, 3) } : o) };
     case 'VIEW_ORDER': return { ...state, activeOrderId: action.id };
@@ -92,7 +99,7 @@ export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, initialize);
   useEffect(() => {
     try {
-      const { drawerOpen: _drawer, toast: _toast, configDraft: _configDraft, ...persisted } = state;
+      const { drawerOpen: _drawer, toast: _toast, configDraft: _configDraft, checkoutOptions: _checkoutOptions, confirmandoPedido: _confirmandoPedido, ...persisted } = state;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
     } catch { /* Modo privado o almacenamiento deshabilitado. */ }
   }, [state]);

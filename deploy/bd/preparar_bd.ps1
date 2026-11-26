@@ -73,6 +73,8 @@ if ($DatosSemilla) {
         Write-Host "  La semilla solo se carga en una base recién creada; se omite."
     }
 }
+CorrerArchivo "LoyOrderNotificaciones.sql"          # avisos persistidos por cambio de estado
+CorrerArchivo "LoyOrderCheckout.sql"                # pedidos persistidos e idempotencia, después de la semilla
 Write-Host ("  Tablas: " + (Consulta "loyorder" "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"))
 
 # 2. Usuario de la aplicación

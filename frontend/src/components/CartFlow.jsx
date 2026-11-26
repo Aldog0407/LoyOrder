@@ -1,13 +1,15 @@
 import { isValidPin } from '../utils/address.js';
 import { obtenerCatalogo } from '../services/catalogo.js';
 import { verificarCheckoutConCatalogo } from '../utils/catalogoStock.js';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { obtenerOpcionesPedido, confirmarPedido } from '../services/pedidos.js';
+import { prepararPedido } from '../utils/pedido-servidor.js';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { money } from '../utils/formato.js';
 import ImagenPlatillo from './ImagenPlatillo.jsx';
 import { useStore } from '../state/StoreContext.jsx';
-import { checkoutTotals, createPlaceOrderAction, deliveryOptions, enabledPayments, validateCheckout, firmaCheckout } from '../utils/checkout.js';
+import { checkoutTotals, deliveryOptions, enabledPayments, validateCheckout, firmaCheckout } from '../utils/checkout.js';
 import LocationPicker from './LocationPicker.jsx';
 import Modal from './Modal.jsx';
 
@@ -17,19 +19,36 @@ export default function CartFlow({ onClose = () => {} }) {
   const navigate = useNavigate();
   const groupId = useId();
   const submitting = useRef(false);
+  const stateActual = useRef(state);
+  stateActual.current = state;
+  const pendienteRef = useRef(state.pedidoPendiente);
+  const [opcionesError, setOpcionesError] = useState('');
+  const [opcionesListas, setOpcionesListas] = useState(false);
+  useEffect(() => {
+    let activo = true;
+    obtenerOpcionesPedido().then(opciones => {
+      if (!activo) return;
+      dispatch({ type: 'SET_CHECKOUT_OPTIONS', opciones });
+      setOpcionesListas(true);
+    }).catch(error => { if (activo) setOpcionesError(error.message); });
+    return () => { activo = false; };
+  }, [dispatch]);
   const [confirm, setConfirm] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
-  const [verificando, setVerificando] = useState(false);
+  const verificando = !!state.confirmandoPedido;
+  const setVerificando = valor => dispatch({ type: 'SET_CONFIRMING_ORDER', valor });
   const [incidencias, setIncidencias] = useState([]);
   const [revisionPendiente, setRevisionPendiente] = useState(null);
   const { subtotal, shipping, total } = checkoutTotals(state);
   const paymentOptions = enabledPayments(state);
   const chosenPayment = paymentOptions.find(method => method.id === state.payment);
-  const error = validateCheckout(state);
+  const validacion = validateCheckout(state);
+  const direccionIncompleta = state.delivery === 'domicilio' && (!state.checkoutAddress?.calle?.trim() || !state.checkoutAddress?.numero?.trim());
+  const error = state.pedidoPendiente ? null : opcionesError || (!opcionesListas ? 'Consultando opciones del restaurante…' : !state.checkoutOptions?.abierto ? 'El restaurante está cerrado.' : validacion || (direccionIncompleta ? 'Completa la calle y el número de entrega.' : null));
 
   async function placeOrder() {
     if (submitting.current) return;
-    const validation = validateCheckout(state);
+    const validation = state.pedidoPendiente ? null : error;
     if (validation) {
       dispatch({ type: 'NOTIFY', message: validation, error: true });
       return;
@@ -40,27 +59,34 @@ export default function CartFlow({ onClose = () => {} }) {
     setRevisionPendiente(null);
     const firma = firmaCheckout(state);
     try {
-      // Cada intento de confirmar fuerza una consulta nueva autenticada al backend.
-      const catalogo = await obtenerCatalogo();
-      const revision = verificarCheckoutConCatalogo(state.cart, catalogo);
-      if (!revision.valido) {
-        setIncidencias(revision.incidencias);
-        setRevisionPendiente({ items: revision.disponibles, firma });
-        dispatch({ type: 'NOTIFY', message: 'Revisa los cambios del catálogo antes de continuar.', error: true });
-        setConfirm(false);
-        return;
+      let pendiente = pendienteRef.current;
+      if (!pendiente) {
+        const catalogo = await obtenerCatalogo();
+        const revision = verificarCheckoutConCatalogo(state.cart, catalogo);
+        if (!revision.valido) {
+          setIncidencias(revision.incidencias);
+          setRevisionPendiente({ items: revision.disponibles, firma });
+          dispatch({ type: 'NOTIFY', message: 'Revisa los cambios del catálogo antes de continuar.', error: true });
+          setConfirm(false);
+          return;
+        }
+        if (firma !== firmaCheckout(stateActual.current)) throw new Error('El carrito cambió. Revisa el pedido antes de confirmar.');
+        pendiente = prepararPedido(state);
+        pendienteRef.current = pendiente;
+        dispatch({ type: 'SET_PENDING_ORDER', pendiente });
       }
-      const action = createPlaceOrderAction(firma);
-      if (state.orders.some(order => order.id === action.folio || order.folio === action.folio)) {
-        throw new Error('No se pudo asignar el folio. Intenta nuevamente.');
-      }
-      // El reducer también coteja la firma, por si cambió el carrito durante el fetch.
-      dispatch(action);
+      const pedido = await confirmarPedido(pendiente.solicitud);
+      dispatch({ type: 'ORDER_SAVED', pendiente, pedido });
+      pendienteRef.current = null;
       setConfirm(false);
       onClose();
-      navigate('/seguimiento');
+      navigate(`/seguimiento/${encodeURIComponent(pedido.folio)}`);
     } catch (fallo) {
-      dispatch({ type: 'NOTIFY', message: fallo.message || 'No fue posible verificar el catálogo.', error: true });
+      if (fallo.status === 400 || fallo.status === 409) {
+        pendienteRef.current = null;
+        dispatch({ type: 'SET_PENDING_ORDER', pendiente: null });
+      }
+      dispatch({ type: 'NOTIFY', message: fallo.message || 'No fue posible confirmar el pedido. Puedes reintentar la misma operación.', error: true });
     } finally {
       submitting.current = false;
       setVerificando(false);
@@ -68,7 +94,9 @@ export default function CartFlow({ onClose = () => {} }) {
   }
 
   return <>
-    <div className="drawer-body cart-flow-body">
+    <div className="drawer-body cart-flow-body" inert={verificando}>
+      {state.pedidoPendiente && <div role="status" className="checkout-error">Hay una confirmación pendiente por {money(state.pedidoPendiente.solicitud.totalEsperado)}. Reintenta esa operación para recuperar el mismo pedido.</div>}
+      {state.pedidoPendiente && !state.cart.length && <button className="button primary full" disabled={verificando} onClick={placeOrder}>Reintentar confirmación pendiente</button>}
       {state.cart.length ? <>
         <div className="cart-lines">
           {state.cart.map((item, index) => <div className="cart-line" key={`${item.dishId}:${item.variantId}`}>
@@ -96,6 +124,10 @@ export default function CartFlow({ onClose = () => {} }) {
           <div><small>Dirección</small><strong>{state.address || 'Sin dirección'}</strong>{isValidPin(state.pin) && <small>{state.pin.lat.toFixed(5)}, {state.pin.lng.toFixed(5)}</small>}</div>
           <button onClick={() => setMapOpen(true)}>{isValidPin(state.pin) ? 'Cambiar →' : 'Seleccionar en mapa →'}</button>
         </div>}
+        {state.delivery === 'domicilio' && <div className="address-box"><div>
+          <label>Calle<input maxLength={150} value={state.checkoutAddress?.calle ?? ''} onChange={e => dispatch({ type: 'SET_CHECKOUT_ADDRESS', campo: 'calle', valor: e.target.value })}/></label>
+          <label>Número exterior o S/N<input maxLength={20} value={state.checkoutAddress?.numero ?? ''} onChange={e => dispatch({ type: 'SET_CHECKOUT_ADDRESS', campo: 'numero', valor: e.target.value })}/></label>
+        </div></div>}
         <fieldset className="checkout-group">
           <legend>Método de pago</legend>
           <div className="choice-grid">{paymentOptions.map(method => <label className={`choice ${state.payment === method.id ? 'chosen' : ''}`} key={method.id}>
@@ -103,7 +135,7 @@ export default function CartFlow({ onClose = () => {} }) {
             {method.icon} {method.label}
           </label>)}</div>
         </fieldset>
-        <p className="fine-print">Pago simulado; no se realizará ningún cargo. Precios del catálogo sincronizado; la disponibilidad por variante se consulta nuevamente al confirmar. No se reservan unidades.</p>
+        <p className="fine-print">Selecciona cómo pagarás al restaurante. Los precios, envío y existencias se comprueban al confirmar. No se cobra en línea ni se reservan unidades.</p>
         {error && <p className="checkout-error" role="alert">{error}</p>}
         {incidencias.length > 0 && <div className="checkout-error" role="alert">
           <strong>El catálogo cambió. No se creó ningún pedido.</strong>
@@ -125,18 +157,18 @@ export default function CartFlow({ onClose = () => {} }) {
       <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
       <div><span>Envío</span><b>{shipping ? money(shipping) : 'Gratis'}</b></div>
       <div className="grand-total"><span>Total</span><strong>{money(total)}</strong></div>
-      <button className="button primary full" disabled={!!error} onClick={() => setConfirm(true)}>Continuar al checkout →</button>
+      <button className="button primary full" disabled={!!error || verificando} onClick={() => setConfirm(true)}>Continuar al checkout →</button>
     </div>}
     {mapOpen && createPortal(<LocationPicker onClose={() => setMapOpen(false)}/>, document.body)}
-    {confirm && createPortal(<Modal className="confirm-modal" label="Confirmación de pedido" onClose={() => setConfirm(false)}>
+    {confirm && createPortal(<Modal className="confirm-modal" label="Confirmación de pedido" onClose={() => { if (!verificando) setConfirm(false); }}>
       <div className="confirm-icon">✓</div><h2>Confirma tu pedido</h2>
-      <p>El pedido se registrará localmente en este navegador.</p>
-      <div className="confirm-total"><span>Total</span><strong>{money(total)}</strong></div>
-      <p className="confirm-description">{deliveryOptions.find(option => option.id === state.delivery)?.label} · {chosenPayment?.label}</p>
-      {state.delivery === 'domicilio' && <p>{state.address}</p>}
+      <p>El pedido se guardará en el restaurante y recibirás su folio de seguimiento.</p>
+      <div className="confirm-total"><span>Total</span><strong>{money(state.pedidoPendiente?.solicitud.totalEsperado ?? total)}</strong></div>
+      <p className="confirm-description">{state.pedidoPendiente ? `${state.pedidoPendiente.solicitud.tipoEntrega} · ${state.pedidoPendiente.paymentLabel}` : `${deliveryOptions.find(option => option.id === state.delivery)?.label} · ${chosenPayment?.label}`}</p>
+      {(state.pedidoPendiente?.direccionTexto || (!state.pedidoPendiente && state.delivery === 'domicilio')) && <p>{state.pedidoPendiente?.direccionTexto ?? state.address}</p>}
       {error && <p className="checkout-error" role="alert">{error}</p>}
-      <button className="button primary full" disabled={!!error || verificando} onClick={placeOrder}>{verificando ? 'Comprobando disponibilidad…' : 'Realizar pedido de prueba'}</button>
-      <button className="button subtle full" onClick={() => setConfirm(false)}>Volver</button>
+      <button className="button primary full" disabled={!!error || verificando} onClick={placeOrder}>{verificando ? 'Confirmando pedido…' : state.pedidoPendiente ? 'Reintentar confirmación pendiente' : 'Confirmar pedido'}</button>
+      <button className="button subtle full" disabled={verificando} onClick={() => setConfirm(false)}>Volver</button>
     </Modal>, document.body)}
   </>;
 }

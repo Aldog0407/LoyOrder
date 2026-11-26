@@ -145,3 +145,8 @@ Desde “Mi pedido”, el enlace “Consultar pedido por folio” abre `/consult
 El checkout existente conserva su alcance de demostración. Sus folios UUID de 39 caracteres requieren integración con el folio definitivo de la API, cuyo esquema admite 30. Los pedidos del checkout local todavía no se guardan en PostgreSQL. No se puede usar un folio local para consultar un pedido que no existe en la base.
 
 Validación de este avance. 25 pruebas Node, ESLint y compilación de producción. Pruebas de navegador contra PostgreSQL 18 temporal con SMTP local de prueba para registro, verificación, solicitud del enlace, apertura de restablecimiento, consulta de pedido y envío de calificación. El cambio de contraseña, consumo único del enlace y revocación de sesiones también se comprobaron por HTTP. Falta comprobar entrega a un buzón real con Gmail.
+
+
+## Integración de pedidos del 25 de noviembre
+
+El checkout, historial y panel del operador utilizan pedidos persistidos mediante la API. Antes de ejecutar esta versión, aplicar `LoyOrderNotificaciones.sql` y `LoyOrderCheckout.sql`, además de las migraciones previas. Ver el contrato, activación del correo, límites y evidencia en [Pedidos del 25 de noviembre](../docs/ACTIVIDAD_PEDIDOS_2026_11_25.md). La parte de inventario real requiere el token de Loyverse; impresión y envío confirmado de ventas siguen pendientes.

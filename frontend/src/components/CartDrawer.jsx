@@ -5,7 +5,7 @@ import CartFlow from './CartFlow.jsx';
 export default function CartDrawer() {
   const { state, dispatch } = useStore();
   if (!state.drawerOpen) return null;
-  const close = () => dispatch({ type: 'CLOSE_CART' });
+  const close = () => { if (!state.confirmandoPedido) dispatch({ type: 'CLOSE_CART' }); };
   const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
   return (
     <div className="backdrop drawer-backdrop" onMouseDown={event => {
@@ -14,7 +14,7 @@ export default function CartDrawer() {
       <aside className="cart-drawer" role="dialog" aria-modal="true" aria-label="Tu carrito">
         <div className="drawer-header">
           <div><span className="eyebrow orange">TU SELECCIÓN</span><h2>Tu carrito ({count})</h2></div>
-          <button className="close-button" onClick={close} aria-label="Cerrar">×</button>
+          <button className="close-button" disabled={state.confirmandoPedido} onClick={close} aria-label="Cerrar">×</button>
         </div>
         <CartFlow onClose={close}/>
       </aside>

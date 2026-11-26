@@ -20,6 +20,10 @@ await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services 
 {
     services.AddSingleton<ICategoriaRepository>(fake);
     services.AddSingleton<IPedidoClienteRepository>(new PedidosPrueba());
+    services.AddSingleton<IHistorialPedidoRepository>(new PedidosPrueba());
+    services.AddSingleton<ICrearPedidoRepository>(new CheckoutPrueba());
+    services.AddSingleton<IOperacionPedidoRepository>(new OperacionPrueba());
+    services.AddSingleton(TimeZoneInfo.Utc);
     services.AddSingleton<IUsuarioRepository>(users);
     services.AddSingleton<TimeProvider>(reloj);
     services.AddSingleton<IOrigenCatalogo>(origen);
@@ -165,6 +169,46 @@ async Task VerificarAcceso()
     catalogo.Restaurante = new(1,"t1",2);
 
     client.DefaultRequestHeaders.Authorization=new("Bearer",await Login());
+    client.DefaultRequestHeaders.Authorization = null;
+    await Check(HttpMethod.Get,"/api/v1/pedidos/opciones",401);
+    await Check(HttpMethod.Post,"/api/v1/pedidos",401,new{});
+    await Check(HttpMethod.Get,"/api/v1/pedidos",401);
+    foreach (var personal in new[] { "admin@prueba.test", "operador@prueba.test" })
+    {
+        client.DefaultRequestHeaders.Authorization = new("Bearer",await Login(personal));
+        await Check(HttpMethod.Get,"/api/v1/pedidos/opciones",403);
+        await Check(HttpMethod.Post,"/api/v1/pedidos",403,new{});
+        await Check(HttpMethod.Get,"/api/v1/pedidos",403);
+    }
+    client.DefaultRequestHeaders.Authorization = new("Bearer",await Login());
+    await Check(HttpMethod.Get,"/api/v1/pedidos/opciones",200);
+    await Check(HttpMethod.Get,"/api/v1/pedidos",200);
+    await Check(HttpMethod.Get,"/api/v1/pedidos?pagina=0",400);
+    client.DefaultRequestHeaders.Authorization=null;
+    await Check(HttpMethod.Get,"/api/v1/operacion/pedidos",401);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",401,new {estado="En preparación"});
+    foreach (var cuentaOperacion in new[] { "cliente@prueba.test","admin@prueba.test" })
+    {
+        client.DefaultRequestHeaders.Authorization=new("Bearer",await Login(cuentaOperacion));
+        await Check(HttpMethod.Get,"/api/v1/operacion/pedidos",403);
+        await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",403,new {estado="En preparación"});
+    }
+    client.DefaultRequestHeaders.Authorization=new("Bearer",await Login("operador@prueba.test"));
+    await Check(HttpMethod.Get,"/api/v1/operacion/pedidos",200);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",200,new {estado="En preparación"});
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",400,new {estado="Cancelado"});
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",400,new {estado="Inventado"});
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",400,new {estado="Entregado",idEmpleado=999});
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/NO-EXISTE/estado",404,new {estado="En preparación"});
+    client.DefaultRequestHeaders.Authorization=new("Bearer",await Login());
+    var operacionCheckout = Guid.NewGuid();
+    var nuevaCompra = new SolicitudPedido(operacionCheckout,"Recolección",1,200,[new(11,2,100)],null);
+    await Check(HttpMethod.Post,"/api/v1/pedidos",201,nuevaCompra);
+    await Check(HttpMethod.Post,"/api/v1/pedidos",201,nuevaCompra);
+    await Check(HttpMethod.Post,"/api/v1/pedidos",409,nuevaCompra with { TotalEsperado=100,Articulos=[new(11,1,100)] });
+    await Check(HttpMethod.Post,"/api/v1/pedidos",400,nuevaCompra with { IdOperacion=Guid.Empty });
+    await Check(HttpMethod.Post,"/api/v1/pedidos",400,new { idOperacion=Guid.NewGuid(),tipoEntrega="Recolección",idMetodoPago=1,totalEsperado=200,
+        articulos=new[] { new { idVariante=11,cantidad=2,precioEsperado=100 } },idCliente=999 });
     users.InactivarCliente=true;
     await Check(HttpMethod.Get,"/api/v1/auth/me",401);
     users.InactivarCliente=false;
@@ -314,8 +358,11 @@ sealed class CatalogoPrueba : ICatalogoRepository
     public Task<IReadOnlyList<RegistroSincronizacion>> HistorialAsync(long id, int n, CancellationToken ct) => Task.FromResult<IReadOnlyList<RegistroSincronizacion>>([]);
 }
 
-sealed class PedidosPrueba : IPedidoClienteRepository
+sealed class PedidosPrueba : IPedidoClienteRepository, IHistorialPedidoRepository
 {
+    public Task<IReadOnlyList<ResumenPedidoCliente>> ListarAsync(long idUsuario,int pagina,int tamano,CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<ResumenPedidoCliente>>(idUsuario == 1 ? [new("PRUEBA-1","Entregado","Recolección",DateTime.UtcNow,100,0,100,null,[])] : []);
+
     public Task<SeguimientoPedido?> ConsultarAsync(long idUsuario, string folio, CancellationToken ct) =>
         Task.FromResult<SeguimientoPedido?>(idUsuario == 1 && folio == "PRUEBA-1"
             ? new(folio, "Entregado", "Recolección", DateTime.UtcNow, DateTime.UtcNow, 100, 0, 100, null, null, [], [])
@@ -340,4 +387,37 @@ sealed class MenuPrueba : IMenuRepository
             new(1, "Bebidas", 1, "Refresco", null, null, 1, "Cola", 25m, true, 48m),
             new(1, "Bebidas", 1, "Refresco", null, null, 2, "Lima-limón", 22m, true, 0m)]);
     }
+}
+
+
+sealed class CheckoutPrueba : ICrearPedidoRepository
+{
+    public Task<bool> DisponibleAsync(CancellationToken ct) => Task.FromResult(true);
+    private readonly Dictionary<(long,Guid),(byte[] Hash,PedidoCreado Pedido)> pedidos = [];
+    public Task<ConfiguracionPedido> ConfiguracionAsync(long? id,CancellationToken ct) =>
+        Task.FromResult(new ConfiguracionPedido(1,"Prueba","t1",new(0,0),new(23,59),25,[new(1,"Efectivo")]));
+    public Task<IReadOnlyList<VariantePedido>> VariantesAsync(long id,long[] ids,CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<VariantePedido>>([new(11,"v11","Prueba",100,false)]);
+    public Task<PedidoCreado?> RecuperarAsync(long usuario,Guid operacion,byte[] hash,CancellationToken ct)
+    {
+        if (!pedidos.TryGetValue((usuario,operacion),out var anterior)) return Task.FromResult<PedidoCreado?>(null);
+        if (!hash.SequenceEqual(anterior.Hash)) throw new CheckoutCambioException("Operación reutilizada");
+        return Task.FromResult<PedidoCreado?>(anterior.Pedido);
+    }
+    public Task<PedidoCreado> GuardarAsync(long usuario,SolicitudPedido s,byte[] hash,ConfiguracionPedido c,
+        IReadOnlyList<VariantePedido> v,DateTimeOffset ahora,TimeZoneInfo zona,CancellationToken ct)
+    {
+        var pedido = new PedidoCreado(1,"LY-00000001",ahora.UtcDateTime,"Recibido",200,0,200);
+        pedidos.Add((usuario,s.IdOperacion),(hash,pedido));
+        return Task.FromResult(pedido);
+    }
+}
+
+
+sealed class OperacionPrueba : IOperacionPedidoRepository
+{
+    public Task<IReadOnlyList<PedidoOperativo>> ListarAsync(long operador,CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<PedidoOperativo>>([new("PRUEBA-1","Recibido","Recolección",DateTime.UtcNow,100,"Cliente",[])]);
+    public Task<EstadoPedidoActualizado> CambiarAsync(long operador,string folio,string estado,string? motivo,CancellationToken ct) =>
+        folio == "PRUEBA-1" ? Task.FromResult(new EstadoPedidoActualizado(folio,estado)) : throw new PedidoNoEncontradoException();
 }

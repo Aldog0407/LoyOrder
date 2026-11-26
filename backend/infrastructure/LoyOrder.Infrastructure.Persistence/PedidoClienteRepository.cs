@@ -35,14 +35,17 @@ public sealed class PedidoClienteRepository(NpgsqlDataSource source) : IPedidoCl
                     reader.IsDBNull(10) ? null : reader.GetString(10), articulos, historial);
             }
             await using var detalles = new NpgsqlCommand("""
-                SELECT nombre_producto, cantidad, precio_unitario, subtotal, indicaciones
-                  FROM public.detalle_pedido WHERE id_pedido = $1 ORDER BY id_detalle
+                SELECT d.nombre_producto, d.cantidad, d.precio_unitario, d.subtotal, d.indicaciones,
+                       d.id_variante, v.id_producto, v.nombre
+                  FROM public.detalle_pedido d JOIN public.variante_producto v ON v.id_variante=d.id_variante
+                  WHERE d.id_pedido = $1 ORDER BY d.id_detalle
                 """, conexion, transaccion);
             detalles.Parameters.AddWithValue(idPedido);
             await using (var reader = await detalles.ExecuteReaderAsync(ct))
                 while (await reader.ReadAsync(ct))
                     articulos.Add(new(reader.GetString(0), reader.GetInt32(1), reader.GetDecimal(2),
-                        reader.GetDecimal(3), reader.IsDBNull(4) ? null : reader.GetString(4)));
+                        reader.GetDecimal(3), reader.IsDBNull(4) ? null : reader.GetString(4),
+                        reader.GetInt64(5), reader.GetInt64(6), reader.IsDBNull(7) ? null : reader.GetString(7)));
             await using var cambios = new NpgsqlCommand("""
                 SELECT estado_anterior, estado_nuevo, fecha_cambio, motivo FROM public.historial_estado
                  WHERE id_pedido = $1 ORDER BY fecha_cambio, id_historial

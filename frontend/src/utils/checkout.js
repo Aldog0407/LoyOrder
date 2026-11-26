@@ -11,11 +11,13 @@ export const deliveryOptions = [
 // Una sola fuente de verdad para el resumen y el pedido persistido.
 export function checkoutTotals(state) {
   const subtotal = state.cart.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0) / 100;
-  const shipping = Math.round(shippingFee(state.config, state.delivery) * 100) / 100;
+  const costo = state.checkoutOptions ? (state.delivery === 'domicilio' ? state.checkoutOptions.costoEnvio : 0) : shippingFee(state.config, state.delivery);
+  const shipping = Math.round(costo * 100) / 100;
   return { subtotal, shipping, total: Math.round((subtotal + shipping) * 100) / 100 };
 }
 
 export function enabledPayments(state) {
+  if (state.checkoutOptions) return state.checkoutOptions.metodosPago.map(pago => ({ id: String(pago.id), label: pago.nombre, icon: '💳' }));
   return paymentCatalog.filter(method => state.config.paymentMethods[method.id] === true);
 }
 
@@ -36,7 +38,7 @@ export function validateCheckout(state) {
 export function firmaCheckout(state) {
   return JSON.stringify({ cart: state.cart, delivery: state.delivery, payment: state.payment,
     address: state.address, pin: state.pin, shipping: state.config.shipping,
-    paymentMethods: state.config.paymentMethods });
+    paymentMethods: state.config.paymentMethods, checkoutOptions: state.checkoutOptions, checkoutAddress: state.checkoutAddress });
 }
 
 export function createPlaceOrderAction(firmaValidada) {

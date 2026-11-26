@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { obtenerHistorialPedidos } from '../services/pedidos.js';
+import { adaptarHistorialPedido } from '../utils/pedido-servidor.js';
 import { useNavigate } from 'react-router';
 import { money } from '../utils/formato.js';
 import { obtenerCatalogo } from '../services/catalogo.js';
@@ -14,6 +16,27 @@ export default function HistoryView() {
   const [rate, setRate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [pedidos, setPedidos] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [mas, setMas] = useState(false);
+  const [falloHistorial, setFalloHistorial] = useState('');
+  const [reintento, setReintento] = useState(0);
+  const [consultando, setConsultando] = useState(true);
+  useEffect(() => {
+    let activo = true;
+    setConsultando(true);
+    setFalloHistorial('');
+    obtenerHistorialPedidos(pagina).then(resultados => {
+      if (!activo) return;
+      setPedidos(anteriores => {
+        const nuevos = resultados.map(adaptarHistorialPedido);
+        return pagina === 1 ? nuevos : [...anteriores, ...nuevos.filter(p => !anteriores.some(a => a.id === p.id))];
+      });
+      setMas(resultados.length === 20);
+    }).catch(fallo => { if (activo) setFalloHistorial(fallo.message); })
+      .finally(() => { if (activo) setConsultando(false); });
+    return () => { activo = false; };
+  }, [pagina, reintento]);
   const busy = useRef(false);
   const navigate = useNavigate();
 
@@ -65,15 +88,16 @@ export default function HistoryView() {
       <h1>Historial de pedidos</h1>
       <p>Una buena comida merece repetirse.</p>
     </div>
+    {falloHistorial && <div role="alert" className="checkout-error">{falloHistorial} <button className="button outline" disabled={consultando} onClick={() => setReintento(n => n + 1)}>Reintentar consulta</button></div>}
     {error && <p role="alert" className="checkout-error">{error}</p>}
     <div className="history-list">
-      {state.orders.map(order => <article className="surface history-card" key={order.id}>
+      {pedidos.map(order => <article className="surface history-card" key={order.id}>
         <div className="history-icon">🛍️</div>
         <div className="history-main">
           <div className="history-title">
             <h3>Pedido {order.folio ?? order.id}</h3>
             <span className={`badge ${order.status === 3 ? 'success' : 'warning'}`}>
-              {order.status === 3 ? 'Entregado' : 'En proceso'}
+              {order.estado ?? (order.status === 3 ? 'Entregado' : 'En proceso')}
             </span>
           </div>
           <p>{order.date} · {order.items.map(item => `${item.quantity}× ${item.name ?? 'Producto anterior'}`).join(', ')}</p>
@@ -81,11 +105,14 @@ export default function HistoryView() {
         </div>
         <div className="history-actions">
           <button className="button outline" disabled={loading} onClick={() => void empezarRepeticion(order)}>↻ Reordenar</button>
-          {order.status === 3 && !order.rated && <button className="button subtle" onClick={() => setRate(order.id)}>★ Calificar</button>}
-          <button className="text-button" onClick={() => { dispatch({ type: 'VIEW_ORDER', id: order.id }); navigate('/seguimiento'); }}>Ver detalle →</button>
+          {order.status === 3 && !order.rated && <button className="button subtle" onClick={() => order.persistido ? navigate(`/seguimiento/${encodeURIComponent(order.folio)}`) : setRate(order.id)}>★ Calificar</button>}
+          <button className="text-button" onClick={() => { if (order.persistido) navigate(`/seguimiento/${encodeURIComponent(order.folio)}`); else { dispatch({ type: 'VIEW_ORDER', id: order.id }); navigate('/seguimiento'); } }}>Ver detalle →</button>
         </div>
       </article>)}
     </div>
+    {consultando && <p role="status">Consultando tus pedidos…</p>}
+    {!consultando && !falloHistorial && pedidos.length === 0 && <p>Aún no tienes pedidos registrados con esta cuenta.</p>}
+    {mas && !falloHistorial && <button className="button outline" disabled={consultando} onClick={() => setPagina(p => p + 1)}>Cargar más pedidos</button>}
     {loading && <p role="status">Consultando el catálogo actualizado…</p>}
     {reorder && <Modal label="Reordenar" className="confirm-modal" onClose={() => { if (!loading) { setReorder(null); setError(''); } }}>
       <div className="rate-face">🔄</div>

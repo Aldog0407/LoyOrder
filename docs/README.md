@@ -25,3 +25,12 @@ Se integraron los avances de checkout y Mapbox junto con `b77a566`, que incorpor
 Para la revisión del viernes 27 de noviembre, la integración prioritaria es crear pedidos reales desde el checkout y operar sus estados. El backend de seguimiento consulta el esquema actual de Gabriel. Los folios locales UUID del checkout tienen 39 caracteres y la columna `pedido.folio` admite 30, por lo que el alta definitiva debe devolver un folio compatible. La generación y reserva del folio definitivo se debe ejecutar en el servidor al guardar el pedido.
 
 La compilación de React avisa de un paquete JavaScript grande al incluir Mapbox. La optimización de carga está pendiente. El despliegue, impresión física, catálogo real, pagos y venta en Loyverse aún requieren integración. Este avance no permite asignar un porcentaje de terminación global únicamente a partir del número de pantallas.
+
+
+## Avance del 25 de noviembre de 2026
+
+El checkout ahora crea pedidos persistidos y el historial consulta PostgreSQL. El operador acepta, prepara, despacha y entrega pedidos de su restaurante. Los cambios de estado generan avisos persistidos con reintentos SMTP. Se comprobó visualmente el recorrido hasta la calificación y se probaron concurrencia, permisos y fallos de dependencias con PostgreSQL temporal.
+
+El estado del 24 de noviembre que aparece arriba es histórico. Las conexiones de checkout, historial, estados y avisos que figuraban pendientes ya están implementadas. La impresión física y la venta confirmada en Loyverse continúan pendientes. La prueba de stock real espera el token de Carlos. También falta aplicar las migraciones nuevas y verificar este recorrido en el entorno local del equipo.
+
+Contrato, migraciones y evidencia en [Pedidos del 25 de noviembre](ACTIVIDAD_PEDIDOS_2026_11_25.md).

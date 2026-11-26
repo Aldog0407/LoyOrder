@@ -17,7 +17,7 @@ internal sealed class OpcionesSmtp
     public string? Contrasena { get; init; }
 }
 
-internal sealed class CorreoSmtp(OpcionesSmtp opciones, SecureSocketOptions seguridad)
+internal sealed class CorreoSmtp(OpcionesSmtp opciones, SecureSocketOptions seguridad) : IEnvioCorreo
 {
     public async Task EnviarAsync(MensajeCorreo correo, CancellationToken ct)
     {
@@ -25,6 +25,7 @@ internal sealed class CorreoSmtp(OpcionesSmtp opciones, SecureSocketOptions segu
         mensaje.From.Add(MailboxAddress.Parse(opciones.Remitente));
         mensaje.To.Add(MailboxAddress.Parse(correo.Destino));
         mensaje.Subject = correo.Asunto;
+        if (correo.IdMensaje is not null) mensaje.MessageId = correo.IdMensaje;
         mensaje.Body = new TextPart("plain") { Text = correo.Texto };
 
         using var cliente = new SmtpClient();
@@ -89,7 +90,12 @@ internal static class ConfigurarCorreo
     public static void AgregarCorreoAutenticacion(this WebApplicationBuilder builder)
     {
         var seccion = builder.Configuration.GetSection("CorreoAutenticacion");
-        if (!seccion.GetValue<bool>("Habilitado")) return;
+        if (!seccion.GetValue<bool>("Habilitado"))
+        {
+            if (builder.Configuration.GetValue<bool>("Notificaciones:Habilitado"))
+                throw new InvalidOperationException("Configure y habilite CorreoAutenticacion para enviar los avisos de pedidos.");
+            return;
+        }
 
         byte[] clave;
         try { clave = Convert.FromBase64String(seccion["ClaveCodigo"] ?? ""); }
@@ -121,6 +127,9 @@ internal static class ConfigurarCorreo
         builder.Services.AddScoped<IDesafioCorreoRepository, DesafioCorreoRepository>();
         builder.Services.AddScoped<CorreoAcceso>();
         builder.Services.AddSingleton(new CorreoSmtp(opciones, seguridad));
+        builder.Services.AddSingleton<IEnvioCorreo>(sp => sp.GetRequiredService<CorreoSmtp>());
+        if (builder.Configuration.GetValue<bool>("Notificaciones:Habilitado"))
+            builder.Services.AddHostedService<NotificacionesPedidos>();
         builder.Services.AddSingleton<ColaCorreo>();
         builder.Services.AddSingleton<IColaCorreo>(sp => sp.GetRequiredService<ColaCorreo>());
         builder.Services.AddHostedService<ProcesarCorreo>();

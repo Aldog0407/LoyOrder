@@ -26,7 +26,7 @@ try
 {
     // LoyOrderObjetos_y_Permisos.sql da CONNECT sobre la base "loyorder" por nombre; aquí se aplica a la base temporal
     // para que la prueba no dependa de que exista una base loyorder en la máquina.
-    foreach (var script in new[] { "LoyOrderEsquema.sql", "LoyOrderObjetos_y_Permisos.sql", "LoyOrderAutenticacionCorreo.sql", "LoyOrderSincronizacion.sql" })
+    foreach (var script in new[] { "LoyOrderEsquema.sql", "LoyOrderObjetos_y_Permisos.sql", "LoyOrderAutenticacionCorreo.sql", "LoyOrderSincronizacion.sql", "LoyOrderCheckout.sql", "LoyOrderNotificaciones.sql" })
         await Sql(File.ReadAllText(Path.Combine(raiz, "database", "scripts", script))
             .Replace("ON DATABASE loyorder TO", $"ON DATABASE {Base} TO"));
     await Sql("INSERT INTO restaurante (nombre, horario_apertura, horario_cierre, costo_envio) VALUES ('Prueba', '09:00', '22:00', 25)");
@@ -128,8 +128,9 @@ try
     try { await consulta.EjecutarAsync(99, default); throw new Exception("No lanzó"); } catch (RestauranteNoConfiguradoException) { }
     Igual(true, await Escalar<bool>("SELECT has_table_privilege('loyorder_api', 'public.variante_producto', 'SELECT')"), "SELECT para la API");
     Ok("catálogo del cliente");
-    Console.WriteLine($"\n{total} de 6 pruebas aprobadas.");
-    return total == 6 ? 0 : 1;
+    total += await CheckoutPostgres.ComprobarAsync(fuente, raiz);
+    Console.WriteLine($"\n{total} pruebas aprobadas.");
+    return 0;
 }
 catch (Exception e)
 {

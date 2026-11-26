@@ -140,7 +140,7 @@ La consulta devuelve `folio`, `estado`, `tipoEntrega`, `fechaCreacion`, `fechaEn
 
 Un folio inexistente o de otro cliente responde el mismo 404. La calificación usa una transacción con bloqueo del pedido. Un pedido sin entregar o una calificación que pretende reemplazar otra responde 409. Repetir la misma calificación y comentario devuelve 204 y conserva lo ya guardado. El comentario se recorta en sus extremos, y vacío se guarda como NULL. Los 2000 caracteres son un límite de API establecido en esta implementación, configurable mediante cambio del contrato con el equipo.
 
-Estas rutas utilizan `pedido`, `detalle_pedido`, `historial_estado` y `cliente` existentes. La creación del pedido y su cambio de estado siguen siendo necesarios para que el flujo de checkout se conecte a estos endpoints. La consulta y calificación se comprobaron con el rol restringido `loyorder_app_user`.
+Estas rutas utilizan `pedido`, `detalle_pedido`, `historial_estado` y `cliente` existentes. La creación y cambio de estado se integraron el 25 de noviembre; consultar la sección final y su contrato actualizado. La consulta y calificación se comprobaron con el rol restringido `loyorder_app_user`.
 
 ## Envío con Gmail
 
@@ -162,3 +162,8 @@ dotnet run --project backend/presentation/LoyOrder.Api
 ```
 
 Configurar `CorreoAutenticacion__ClaveCodigo` con una clave aleatoria en Base64 de al menos 32 bytes, conforme a la sección de correo. ASP.NET Core lee las variables del proceso, por lo que los bloques anteriores se ejecutan en PowerShell. El correo se habilita al definir todas sus opciones. Comprobar el envío a un buzón real antes de la revisión. La validación local del 24 de noviembre empleó un receptor SMTP temporal.
+
+
+## Integración de pedidos del 25 de noviembre
+
+El checkout, historial y panel del operador utilizan pedidos persistidos mediante la API. Antes de ejecutar esta versión, aplicar `LoyOrderNotificaciones.sql` y `LoyOrderCheckout.sql`, además de las migraciones previas. Ver el contrato, activación del correo, límites y evidencia en [Pedidos del 25 de noviembre](../docs/ACTIVIDAD_PEDIDOS_2026_11_25.md). La parte de inventario real requiere el token de Loyverse; impresión y envío confirmado de ventas siguen pendientes.

@@ -27,6 +27,15 @@ public static class ApiHost
         builder.AgregarSincronizacion();
         builder.Services.AddScoped<IPedidoClienteRepository, PedidoClienteRepository>();
         builder.Services.AddScoped<PedidosCliente>();
+        builder.Services.AddScoped<ICrearPedidoRepository, CrearPedidoRepository>();
+        builder.Services.AddScoped<CrearPedido>();
+        builder.Services.AddScoped<IHistorialPedidoRepository, HistorialPedidoRepository>();
+        builder.Services.AddScoped<HistorialPedidos>();
+        builder.Services.AddScoped<IOperacionPedidoRepository, OperacionPedidoRepository>();
+        builder.Services.AddScoped<OperacionPedidos>();
+        builder.Services.AddScoped<INotificacionPedidoRepository, NotificacionPedidoRepository>();
+        builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(
+            builder.Configuration["Pedidos:ZonaHoraria"] ?? "America/Mexico_City"));
         configurar?.Invoke(builder.Services);
         var app = builder.Build();
         app.UseExceptionHandler();
@@ -40,7 +49,8 @@ public static class ApiHost
         app.MapGet("/health/ready", async (ICategoriaRepository repo, HttpContext context, CancellationToken ct) =>
         {
             var desafios = context.RequestServices.GetService<IDesafioCorreoRepository>();
-            return await repo.DisponibleAsync(ct) && (desafios is null || await desafios.DisponibleAsync(ct))
+            var checkout = context.RequestServices.GetRequiredService<ICrearPedidoRepository>();
+            return await repo.DisponibleAsync(ct) && await checkout.DisponibleAsync(ct) && (desafios is null || await desafios.DisponibleAsync(ct))
                 ? Results.Ok(new { estado = "Disponible" })
                 : Results.Problem(statusCode: 503, title: "Base de datos no disponible o esquema no preparado.");
         });
