@@ -1,0 +1,8 @@
+BEGIN;
+
+ALTER TABLE public.producto
+    ADD COLUMN IF NOT EXISTS nombre_menu VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS descripcion_menu VARCHAR(2000),
+    ADD COLUMN IF NOT EXISTS imagen_url_menu VARCHAR(2048);
+
+COMMIT;

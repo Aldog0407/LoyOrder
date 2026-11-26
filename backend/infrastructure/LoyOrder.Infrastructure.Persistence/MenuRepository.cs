@@ -7,14 +7,16 @@ public sealed class MenuRepository(NpgsqlDataSource source) : IMenuRepository
 {
     // "Sin categoría" la crea la sincronización con id_loyverse 'loyorder-sin-categoria-{id}' y se muestra al final.
     private const string Consulta = """
-        SELECT c.id_categoria, c.nombre, p.id_producto, p.nombre, p.descripcion, p.imagen_url,
+        SELECT c.id_categoria, c.nombre, p.id_producto,
+               COALESCE(p.nombre_menu, p.nombre), COALESCE(p.descripcion_menu, p.descripcion),
+               COALESCE(p.imagen_url_menu, p.imagen_url),
                v.id_variante, v.nombre, v.precio, v.controla_inventario, v.existencias
         FROM categoria c
         JOIN producto p ON p.id_categoria = c.id_categoria
         JOIN variante_producto v ON v.id_producto = p.id_producto
         WHERE c.id_restaurante = $1 AND c.activo AND p.disponible AND v.disponible AND v.precio > 0
         ORDER BY (c.id_loyverse LIKE 'loyorder-sin-categoria-%') NULLS FIRST, lower(c.nombre), c.id_categoria,
-                 lower(p.nombre), p.id_producto, v.id_variante
+                 lower(COALESCE(p.nombre_menu, p.nombre)), p.id_producto, v.id_variante
         """;
 
     public async Task<IReadOnlyList<FilaMenu>> ListarAsync(long idRestaurante, CancellationToken ct)

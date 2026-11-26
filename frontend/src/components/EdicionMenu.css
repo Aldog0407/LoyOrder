@@ -1,0 +1,17 @@
+.edicion-menu { display: grid; gap: 16px; margin-block: 16px; }
+.edicion-menu form { display: grid; gap: 14px; justify-items: stretch; }
+.edicion-menu form button { justify-self: start; }
+.edicion-menu select,
+.edicion-menu textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #ddd4c8;
+  border-radius: var(--radius-button);
+  background: white;
+  color: var(--text);
+  font: inherit;
+  min-height: 44px;
+}
+.edicion-menu textarea { resize: vertical; }
+.edicion-menu select:focus-visible,
+.edicion-menu textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
