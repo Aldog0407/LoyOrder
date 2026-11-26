@@ -28,7 +28,7 @@ Se abrió temporalmente el horario para probar de madrugada. El horario original
 1. Reporte 7.3.10 ya medido y reproducible en `ACTIVIDAD_7_3_10.md`: backend unitario 74.70% de líneas y combinado con HTTP/PostgreSQL 74.20%. JavaScript medido 96.71%, sin componentes JSX. No convertir estas cifras en porcentaje de avance del proyecto.
 2. Reunir evidencia y un guion corto del recorrido de exposición.
 3. Despacho 7.2.23: los estados y avisos funcionan; la impresión sigue pendiente. Aldo confirmó el 26 que el módulo ESC/POS de Carlos todavía no está disponible. No marcar impresión ni despacho completo como terminados.
-4. Para venta con costo de envío, vincular `Ventas__IdVarianteEnvio` a una variante real y comprobar ese recorrido. El flujo confirmado con Loyverse fue Recolección.
+4. Venta con costo de envío ya comprobada: pedido `LY-00000004`, recibo `0007`, producto $35 más envío $25, total $60. En esta cuenta configurar `Ventas__IdVarianteEnvio=cde5af37-bb84-4132-860a-7c1316184001`. El costo original era $0 y se cambió temporalmente a $25; verificar si Aldo ya lo restauró.
 5. Validar el despliegue entre equipos con sus responsables. No prometer pruebas físicas sin impresora disponible.
 
 Ver `ACTIVIDAD_7_2_13.md`, `ACTIVIDAD_7_4_1.md` y los estados históricos de `docs/README.md`.
@@ -36,3 +36,5 @@ Ver `ACTIVIDAD_7_2_13.md`, `ACTIVIDAD_7_4_1.md` y los estados históricos de `do
 ## Punto de parada preparado el 26 por la mañana
 
 Ventas, avisos, acceso de operador, Swagger y reporte de cobertura quedaron guardados en commits locales de main. Consultar `git status -sb` para verificar qué falta subir; no asumir que el push se hizo. Para retomar: verificar arranque, abrir Swagger y ensayar el recorrido de exposición con las cuentas propias. El despacho completo espera la impresión de Carlos, que Aldo confirmó que aún no está disponible.
+
+Prueba de domicilio completada y comprobada contra Loyverse el 26. El mapa funciona con el token público en `frontend/.env.local`, que es configuración local. Pendiente dejar la evidencia visual de calificación en el entorno de Aldo si todavía no se capturó, ensayar Swagger y coordinar la impresión de Carlos.

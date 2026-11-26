@@ -53,3 +53,8 @@ Swagger está disponible en `/swagger` y OpenAPI en `/openapi/v1.json` al ejecut
 ## Reporte de pruebas con cobertura · 26 de noviembre
 
 Disponible [actividad 7.3.10](ACTIVIDAD_7_3_10.md) con medición reproducible, alcances separados de pruebas unitarias e integración y evidencia XML/LCOV. Los pendientes anteriores de cobertura describen el estado histórico. Para retomar el proyecto, consultar [punto de continuación](PUNTO_CONTINUACION.md). La impresión permanece pendiente del módulo de Carlos.
+
+
+## Venta con envío comprobada
+
+El 26 de noviembre Aldo completó el pedido a domicilio `LY-00000004`. Loyverse confirmó el recibo `0007`: producto $35 y envío $25, total $60. La actividad 7.2.13 ya cuenta con evidencia real de Recolección y Domicilio. Ver [evidencia](evidencias/venta_domicilio_2026_11_26.json). La integración física de impresión permanece pendiente.

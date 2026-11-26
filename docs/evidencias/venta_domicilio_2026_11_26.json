@@ -1,0 +1,23 @@
+{
+  "fecha_recibo_utc": "2026-11-26T16:53:22Z",
+  "folio": "LY-00000004",
+  "numero_recibo": "0007",
+  "tipo_entrega": "Domicilio",
+  "total": 60.0,
+  "articulos": [
+    {
+      "nombre": "Agua de horchata 1 L",
+      "cantidad": 1,
+      "precio_unitario": 35.0,
+      "importe": 35.0
+    },
+    {
+      "nombre": "Envío de LoyOrder",
+      "cantidad": 1,
+      "precio_unitario": 25.0,
+      "importe": 25.0
+    }
+  ],
+  "verificacion": "Consulta de solo lectura a los recibos de la cuenta de pruebas de Loyverse. El total coincide con productos más envío.",
+  "alcance": "Prueba manual completada por Aldo en su entorno local; no es una medición adicional de cobertura."
+}
