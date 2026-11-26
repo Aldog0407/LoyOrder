@@ -66,10 +66,13 @@ export default function StoredTrackingView() {
         {cambio.motivo && <p>{cambio.motivo}</p>}
       </li>)}</ol> : <p>Sin cambios adicionales registrados.</p>}
       <p className="muted">Se consulta cada 15 segundos mientras esta pestaña está visible.</p>
-      {pedido.calificacion != null ? <p role="status">Tu calificación es {pedido.calificacion} de 5. {pedido.comentario}</p> : pedido.estado === 'Entregado' && <form onSubmit={calificar}>
-        <fieldset disabled={enviando}><legend>Califica tu pedido</legend>
-          <label>Calificación<select name="calificacion" required defaultValue=""><option value="" disabled>Selecciona una calificación</option>{[1, 2, 3, 4, 5].map(valor => <option key={valor} value={valor}>{valor} de 5</option>)}</select></label>
-          <label>Comentario (opcional)<textarea name="comentario" maxLength={2000}/></label>
+      {pedido.calificacion != null ? <section className="pedido-rating-result" role="status" aria-label="Calificación registrada">
+        <div className="pedido-rating-score"><span aria-hidden="true">★</span><strong>Tu calificación es {pedido.calificacion} de 5.</strong></div>
+        {pedido.comentario && <p>{pedido.comentario}</p>}
+      </section> : pedido.estado === 'Entregado' && <form className="pedido-rating" onSubmit={calificar}>
+        <fieldset className="pedido-rating-fields" disabled={enviando}><legend>Califica tu pedido</legend>
+          <label className="pedido-rating-field">Calificación<select name="calificacion" required defaultValue=""><option value="" disabled>Selecciona una calificación</option>{[1, 2, 3, 4, 5].map(valor => <option key={valor} value={valor}>{valor} de 5</option>)}</select></label>
+          <label className="pedido-rating-field">Comentario (opcional)<textarea name="comentario" rows={4} maxLength={2000} placeholder="Cuéntanos cómo fue tu pedido…"/></label>
           <button className="button primary" disabled={enviando}>{enviando ? 'Guardando…' : 'Enviar calificación'}</button>
         </fieldset></form>}
     </section><aside className="surface summary-card"><h2>Resumen</h2>
