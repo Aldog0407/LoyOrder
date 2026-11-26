@@ -101,3 +101,10 @@
 .menu-status.error{color:#761111}
 .detail-description{white-space:pre-line}
 @media(max-width:760px){.detail-art{min-height:170px}}
+/* Contraseña: botón accesible sin alterar el diseño de formularios. */
+.auth-card .password-field {display:grid;gap:8px;min-width:0;}
+.auth-card .password-control {position:relative;}
+.auth-card .password-control input {padding-right:95px;}
+.auth-card .password-toggle {position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:7px 9px;border:0;border-radius:8px;background:transparent;color:#a64209;font:inherit;font-size:.83rem;font-weight:700;cursor:pointer;}
+.auth-card .password-toggle:hover {background:#fff1e4;}
+.auth-card .password-toggle:focus-visible {outline:2px solid #E8590C;outline-offset:2px;}

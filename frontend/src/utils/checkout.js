@@ -32,7 +32,14 @@ export function validateCheckout(state) {
 }
 
 // Generar fuera del reducer: React StrictMode puede invocar el reducer dos veces.
-export function createPlaceOrderAction() {
+// Firma local para impedir confirmar si el carrito cambió durante la consulta asíncrona.
+export function firmaCheckout(state) {
+  return JSON.stringify({ cart: state.cart, delivery: state.delivery, payment: state.payment,
+    address: state.address, pin: state.pin, shipping: state.config.shipping,
+    paymentMethods: state.config.paymentMethods });
+}
+
+export function createPlaceOrderAction(firmaValidada) {
   // getRandomValues también funciona en HTTP local/red, a diferencia de randomUUID
   // en algunos contextos no seguros. UUID v4 con 122 bits aleatorios.
   const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
@@ -40,7 +47,7 @@ export function createPlaceOrderAction() {
   bytes[8] = (bytes[8] & 63) | 128;
   const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
   const uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-  return { type: 'PLACE_ORDER', folio: `LY-${uuid.toUpperCase()}`, createdAt: new Date().toISOString() };
+  return { type: 'PLACE_ORDER', folio: `LY-${uuid.toUpperCase()}`, createdAt: new Date().toISOString(), firmaValidada };
 }
 
 // Transición pura: conserva el contrato id/delivery/payment/total/status existente.
@@ -48,8 +55,10 @@ export function placeOrderState(state, action) {
   // Acciones repetidas no deben crear otro pedido ni vaciar un carrito nuevo.
   if (state.orders.some(order => order.id === action.folio || order.folio === action.folio)) return state;
   const error = validateCheckout(state);
-  if (error || !/^LY-[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/.test(action.folio || '') || !Number.isFinite(Date.parse(action.createdAt))) {
-    return { ...state, toast: { id: action.folio, message: error || 'No se pudo generar el folio.', error: true } };
+  // No se puede registrar un pedido sin consultar el catálogo vigente antes.
+  const firmaIncorrecta = !action.firmaValidada || action.firmaValidada !== firmaCheckout(state);
+  if (error || firmaIncorrecta || !/^LY-[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/.test(action.folio || '') || !Number.isFinite(Date.parse(action.createdAt))) {
+    return { ...state, toast: { id: action.folio, message: error || (firmaIncorrecta ? 'El carrito cambió o falta comprobar la disponibilidad. Intenta de nuevo.' : 'No se pudo generar el folio.'), error: true } };
   }
   const method = enabledPayments(state).find(payment => payment.id === state.payment);
   const order = {

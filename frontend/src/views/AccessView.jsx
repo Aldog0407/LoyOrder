@@ -1,3 +1,4 @@
+import PasswordInput from '../components/PasswordInput.jsx';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { registrar } from '../auth.js';
@@ -48,8 +49,8 @@ export default function AccessView({ mode }) {
         {registro && <><label>Nombre<input name="nombre" required maxLength={100} autoComplete="name"/></label>
           <label>Teléfono (opcional)<input name="telefono" type="tel" maxLength={20} autoComplete="tel"/></label></>}
         <label>Correo electrónico<input name="correo" type="email" required maxLength={150} autoComplete="email"/></label>
-        <label>Contraseña<input name="contrasena" type="password" required minLength={registro ? 8 : undefined} maxLength={128} autoComplete={registro ? 'new-password' : 'current-password'} aria-describedby={registro ? 'password-help' : undefined}/></label>
-        {registro && <><label>Confirmar contraseña<input name="confirmacion" type="password" required maxLength={128} autoComplete="new-password"/></label>
+        <PasswordInput label="Contraseña" name="contrasena" minLength={registro ? 8 : undefined} autoComplete={registro ? 'new-password' : 'current-password'} describedBy={registro ? 'password-help' : undefined}/>
+        {registro && <><PasswordInput label="Confirmar contraseña" name="confirmacion" autoComplete="new-password"/>
           <small id="password-help">Entre 8 y 128 caracteres y al menos un símbolo, como !, # o $.</small></>}
         <p id="auth-error" role="alert" aria-live="polite">{error}</p>
         <button className="button primary full" type="submit">{enviando ? 'Procesando…' : registro ? 'Crear cuenta' : 'Iniciar sesión'}</button>

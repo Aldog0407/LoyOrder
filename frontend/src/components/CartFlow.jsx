@@ -1,11 +1,13 @@
 import { isValidPin } from '../utils/address.js';
+import { obtenerCatalogo } from '../services/catalogo.js';
+import { verificarCheckoutConCatalogo } from '../utils/catalogoStock.js';
 import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { money } from '../utils/formato.js';
 import ImagenPlatillo from './ImagenPlatillo.jsx';
 import { useStore } from '../state/StoreContext.jsx';
-import { checkoutTotals, createPlaceOrderAction, deliveryOptions, enabledPayments, validateCheckout } from '../utils/checkout.js';
+import { checkoutTotals, createPlaceOrderAction, deliveryOptions, enabledPayments, validateCheckout, firmaCheckout } from '../utils/checkout.js';
 import LocationPicker from './LocationPicker.jsx';
 import Modal from './Modal.jsx';
 
@@ -17,34 +19,52 @@ export default function CartFlow({ onClose = () => {} }) {
   const submitting = useRef(false);
   const [confirm, setConfirm] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [verificando, setVerificando] = useState(false);
+  const [incidencias, setIncidencias] = useState([]);
+  const [revisionPendiente, setRevisionPendiente] = useState(null);
   const { subtotal, shipping, total } = checkoutTotals(state);
   const paymentOptions = enabledPayments(state);
   const chosenPayment = paymentOptions.find(method => method.id === state.payment);
   const error = validateCheckout(state);
 
-  function placeOrder() {
+  async function placeOrder() {
     if (submitting.current) return;
     const validation = validateCheckout(state);
     if (validation) {
       dispatch({ type: 'NOTIFY', message: validation, error: true });
       return;
     }
-    let action;
-    try { action = createPlaceOrderAction(); }
-    catch {
-      dispatch({ type: 'NOTIFY', message: 'No se pudo generar el folio.', error: true });
-      return;
-    }
-    // Verificar contra el historial antes de iniciar la transición.
-    if (state.orders.some(order => order.id === action.folio || order.folio === action.folio)) {
-      dispatch({ type: 'NOTIFY', message: 'Intenta confirmar nuevamente.', error: true });
-      return;
-    }
     submitting.current = true;
-    dispatch(action); // El reducer construye el pedido usando el estado vigente.
-    setConfirm(false);
-    onClose();
-    navigate('/seguimiento');
+    setVerificando(true);
+    setIncidencias([]);
+    setRevisionPendiente(null);
+    const firma = firmaCheckout(state);
+    try {
+      // Cada intento de confirmar fuerza una consulta nueva autenticada al backend.
+      const catalogo = await obtenerCatalogo();
+      const revision = verificarCheckoutConCatalogo(state.cart, catalogo);
+      if (!revision.valido) {
+        setIncidencias(revision.incidencias);
+        setRevisionPendiente({ items: revision.disponibles, firma });
+        dispatch({ type: 'NOTIFY', message: 'Revisa los cambios del catálogo antes de continuar.', error: true });
+        setConfirm(false);
+        return;
+      }
+      const action = createPlaceOrderAction(firma);
+      if (state.orders.some(order => order.id === action.folio || order.folio === action.folio)) {
+        throw new Error('No se pudo asignar el folio. Intenta nuevamente.');
+      }
+      // El reducer también coteja la firma, por si cambió el carrito durante el fetch.
+      dispatch(action);
+      setConfirm(false);
+      onClose();
+      navigate('/seguimiento');
+    } catch (fallo) {
+      dispatch({ type: 'NOTIFY', message: fallo.message || 'No fue posible verificar el catálogo.', error: true });
+    } finally {
+      submitting.current = false;
+      setVerificando(false);
+    }
   }
 
   return <>
@@ -83,8 +103,22 @@ export default function CartFlow({ onClose = () => {} }) {
             {method.icon} {method.label}
           </label>)}</div>
         </fieldset>
-        <p className="fine-print">Pago simulado; no se realizará ningún cargo. Precios del catálogo sincronizado con Loyverse; las existencias se validan al confirmar.</p>
+        <p className="fine-print">Pago simulado; no se realizará ningún cargo. Precios del catálogo sincronizado; la disponibilidad por variante se consulta nuevamente al confirmar. No se reservan unidades.</p>
         {error && <p className="checkout-error" role="alert">{error}</p>}
+        {incidencias.length > 0 && <div className="checkout-error" role="alert">
+          <strong>El catálogo cambió. No se creó ningún pedido.</strong>
+          <ul>{incidencias.map((incidencia, i) => <li key={i}>{incidencia.mensaje}</li>)}</ul>
+          <p>Puedes aceptar los precios actuales y omitir los artículos agotados, o modificar el carrito manualmente.</p>
+          {revisionPendiente && <button className="button outline" onClick={() => {
+            if (revisionPendiente.firma !== firmaCheckout(state)) {
+              dispatch({ type: 'NOTIFY', message: 'El carrito cambió. Repite la comprobación antes de actualizar.', error: true });
+              return;
+            }
+            dispatch({ type: 'RECONCILE_CART', items: revisionPendiente.items, firma: revisionPendiente.firma });
+            setRevisionPendiente(null);
+            setIncidencias([]);
+          }}>Actualizar carrito con artículos disponibles</button>}
+        </div>}
       </> : <div className="cart-empty"><span>🛒</span><h3>Tu carrito está vacío</h3><p>Selecciona un platillo para empezar.</p><button className="button outline" onClick={() => { onClose(); navigate('/menu'); }}>Explorar menú</button></div>}
     </div>
     {state.cart.length > 0 && <div className="drawer-footer cart-flow-footer">
@@ -101,7 +135,7 @@ export default function CartFlow({ onClose = () => {} }) {
       <p className="confirm-description">{deliveryOptions.find(option => option.id === state.delivery)?.label} · {chosenPayment?.label}</p>
       {state.delivery === 'domicilio' && <p>{state.address}</p>}
       {error && <p className="checkout-error" role="alert">{error}</p>}
-      <button className="button primary full" disabled={!!error} onClick={placeOrder}>Realizar pedido de prueba</button>
+      <button className="button primary full" disabled={!!error || verificando} onClick={placeOrder}>{verificando ? 'Comprobando disponibilidad…' : 'Realizar pedido de prueba'}</button>
       <button className="button subtle full" onClick={() => setConfirm(false)}>Volver</button>
     </Modal>, document.body)}
   </>;

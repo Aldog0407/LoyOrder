@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultConfig } from '../src/config/defaults.js';
-import { checkoutTotals, createPlaceOrderAction, placeOrderState, validateCheckout } from '../src/utils/checkout.js';
+import { checkoutTotals, createPlaceOrderAction, placeOrderState, validateCheckout, firmaCheckout } from '../src/utils/checkout.js';
 
 const state = (changes = {}) => ({ config: structuredClone(defaultConfig), cart: [{ dishId: 1, variantId: 11, name: 'Burger de la casa', variant: 'Clásica', image: null, quantity: 2, price: 149 }], orders: [{ id: 'LY-1042' }], delivery: 'local', payment: 'cash', address: 'Calle de prueba 123', pin: { lng: -96.9271, lat: 19.5438 }, drawerOpen: true, ...changes });
 
 test('local: folio único, envío cero y persistencia compatible', () => {
   const before = state();
   const action = createPlaceOrderAction();
-  const after = placeOrderState(before, action);
+  const after = placeOrderState(before, { ...action, firmaValidada: firmaCheckout(before) });
   assert.equal(after.orders[0].id, action.folio);
   assert.equal(after.orders[0].folio, action.folio);
   assert.equal(after.activeOrderId, action.folio);
@@ -25,7 +25,7 @@ test('local: folio único, envío cero y persistencia compatible', () => {
 test('domicilio: registra dirección, método y desglose', () => {
   const before = state({ delivery: 'domicilio', payment: 'card' });
   assert.deepEqual(checkoutTotals(before), { subtotal: 298, shipping: 35, total: 333 });
-  const order = placeOrderState(before, createPlaceOrderAction()).orders[0];
+  const order = placeOrderState(before, createPlaceOrderAction(firmaCheckout(before))).orders[0];
   assert.equal(order.address, before.address);
   assert.deepEqual(order.pin, before.pin);
   assert.equal(order.payment, 'card');
@@ -35,7 +35,7 @@ test('domicilio: registra dirección, método y desglose', () => {
 test('rechaza carrito vacío, dirección incompleta y pago desactivado', () => {
   for (const input of [state({ cart: [] }), state({ delivery: 'domicilio', address: '' }), state({ payment: 'digital' })]) {
     assert.ok(validateCheckout(input));
-    const after = placeOrderState(input, createPlaceOrderAction());
+    const after = placeOrderState(input, createPlaceOrderAction(firmaCheckout(input)));
     assert.equal(after.orders.length, 1);
     assert.equal(after.cart, input.cart);
     assert.equal(after.toast.error, true);
@@ -44,9 +44,9 @@ test('rechaza carrito vacío, dirección incompleta y pago desactivado', () => {
 test('reducer puro, acciones repetidas no duplican pedidos', () => {
   const before = state();
   const action = createPlaceOrderAction();
-  const after = placeOrderState(before, action);
-  assert.deepEqual(after, placeOrderState(before, action));
-  assert.equal(placeOrderState(after, action), after);
+  const after = placeOrderState(before, { ...action, firmaValidada: firmaCheckout(before) });
+  assert.deepEqual(after, placeOrderState(before, { ...action, firmaValidada: firmaCheckout(before) }));
+  assert.equal(placeOrderState(after, { ...action, firmaValidada: firmaCheckout(before) }), after);
   assert.notEqual(createPlaceOrderAction().folio, action.folio);
 });
 test('rechaza variantes inválidas y folio ausente', () => {

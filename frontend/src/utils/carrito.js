@@ -9,7 +9,7 @@ export function esItemValido(item) {
   return !!item && idValido(item.dishId) && idValido(item.variantId) &&
     typeof item.name === 'string' && item.name.trim() !== '' && typeof item.variant === 'string' &&
     Number.isFinite(item.price) && item.price > 0 &&
-    Number.isSafeInteger(item.quantity) && item.quantity >= 1;
+    Number.isSafeInteger(item.quantity) && item.quantity >= 1 && item.quantity <= CANTIDAD_MAXIMA;
 }
 
 export const mismaLinea = (a, b) => a.dishId === b.dishId && a.variantId === b.variantId;

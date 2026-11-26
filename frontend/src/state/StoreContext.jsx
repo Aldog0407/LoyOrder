@@ -1,8 +1,8 @@
 import { normalizeAddress } from '../utils/address.js';
 import { createContext, useContext, useEffect, useReducer } from 'react';
 import { defaultConfig } from '../config/defaults.js';
-import { esItemValido, mismaLinea } from '../utils/carrito.js';
-import { placeOrderState, enabledPayments, deliveryOptions } from '../utils/checkout.js';
+import { CANTIDAD_MAXIMA, esItemValido, mismaLinea } from '../utils/carrito.js';
+import { placeOrderState, enabledPayments, deliveryOptions, firmaCheckout } from '../utils/checkout.js';
 
 const STORAGE_KEY = 'loyorder-react-demo-v1';
 const seedOrders = [{ id: 'LY-1042', date: '03 nov 2026', items: [{ dishId: 2, variant: 'Mediana', price: 189, quantity: 1 }], total: 189, delivery: 'local', payment: 'cash', status: 3, rated: false }];
@@ -44,28 +44,43 @@ function reducer(state, action) {
       const index = state.cart.findIndex(item => mismaLinea(item, action.item));
       const cart = [...state.cart];
       if (index < 0) cart.push({ ...action.item });
-      else cart[index] = { ...cart[index], price: action.item.price, quantity: cart[index].quantity + action.item.quantity };
+      else {
+        const cantidad = cart[index].quantity + action.item.quantity;
+        if (cantidad > CANTIDAD_MAXIMA) return { ...state, toast: { id: 'limite', message: `Máximo ${CANTIDAD_MAXIMA} unidades por variante.`, error: true } };
+        cart[index] = { ...action.item, quantity: cantidad };
+      }
       return { ...state, cart };
     }
     case 'CHANGE_QUANTITY': {
-      const cart = state.cart.map((item, index) => index === action.index ? { ...item, quantity: item.quantity + action.delta } : item).filter(item => item.quantity > 0);
+      const cart = state.cart.map((item, index) => index === action.index ? { ...item, quantity: Math.min(CANTIDAD_MAXIMA, item.quantity + action.delta) } : item).filter(item => item.quantity > 0);
       return { ...state, cart };
     }
     case 'REMOVE_ITEM': return { ...state, cart: state.cart.filter((_, index) => index !== action.index) };
+    case 'RECONCILE_CART': {
+      if (!action.firma || action.firma !== firmaCheckout(state)) return state;
+      if (!Array.isArray(action.items) || action.items.some(item => !esItemValido(item))) return state;
+      const unicos = new Set(action.items.map(item => `${item.dishId}:${item.variantId}`));
+      if (unicos.size !== action.items.length) return state;
+      return { ...state, cart: action.items.map(item => ({ ...item })),
+        toast: { id: 'carrito-actualizado', message: 'Carrito actualizado. Revisa el total antes de confirmar.', error: false } };
+    }
     case 'PLACE_ORDER': return placeOrderState(state, action);
     case 'ADVANCE_ORDER': return { ...state, orders: state.orders.map(o => o.id === action.id ? { ...o, status: Math.min(o.status + 1, 3) } : o) };
     case 'VIEW_ORDER': return { ...state, activeOrderId: action.id };
     case 'RATE_ORDER': return { ...state, orders: state.orders.map(o => o.id === action.id ? { ...o, rated: true, rating: action.rating } : o) };
     case 'REORDER': {
+      // Solo admite las líneas normalizadas previamente con crearItemCarrito + catálogo actual.
+      // La pantalla controla la consulta y pide confirmación de cambios de precio.
       let cart = [...state.cart];
-      for (const item of action.items) {
-        // Pendiente 7.2.14: comprobar contra el catálogo actual que el artículo siga disponible y con el mismo precio.
+      for (const item of action.items ?? []) {
         if (!esItemValido(item)) continue;
         const index = cart.findIndex(c => mismaLinea(c, item));
         if (index < 0) cart.push({ ...item });
-        else cart = cart.map((c, i) => i === index ? { ...c, quantity: c.quantity + item.quantity } : c);
+        else if (cart[index].quantity + item.quantity <= CANTIDAD_MAXIMA) {
+          cart = cart.map((c, i) => i === index ? { ...item, quantity: c.quantity + item.quantity } : c);
+        }
       }
-      return { ...state, cart, drawerOpen: true };
+      return { ...state, cart, drawerOpen: cart.length > 0 };
     }
     default: return state;
   }
