@@ -7,7 +7,7 @@ namespace LoyOrder.Infrastructure.Persistence;
 public sealed class NotificacionPedidoRepository(NpgsqlDataSource source) : INotificacionPedidoRepository
 {
     internal static async Task EncolarAsync(NpgsqlConnection conexion,NpgsqlTransaction tx,long pedido,long historial,
-        string folio,string estado,string tipoEntrega,decimal total,CancellationToken ct)
+        string folio,string estado,string tipoEntrega,decimal total,CancellationToken ct,string? motivo=null)
     {
         await using var cmd = new NpgsqlCommand("""
             INSERT INTO public.notificacion(id_pedido,id_usuario,id_historial,asunto,mensaje)
@@ -17,7 +17,7 @@ public sealed class NotificacionPedidoRepository(NpgsqlDataSource source) : INot
         cmd.Parameters.AddWithValue(pedido);
         cmd.Parameters.AddWithValue(historial);
         cmd.Parameters.AddWithValue($"LoyOrder · Pedido {folio} · {estado}");
-        cmd.Parameters.AddWithValue($"Tu pedido {folio} está en estado {estado}.\nModalidad: {tipoEntrega}.\nTotal: {total.ToString("0.00",CultureInfo.InvariantCulture)} MXN.\nConsulta los detalles y el historial en LoyOrder.");
+        cmd.Parameters.AddWithValue($"Tu pedido {folio} está en estado {estado}."+(estado=="Cancelado"&&!string.IsNullOrWhiteSpace(motivo)?$"\nMotivo: {motivo}":"")+$"\nModalidad: {tipoEntrega}.\nTotal: {total.ToString("0.00",CultureInfo.InvariantCulture)} MXN.\nConsulta los detalles y el historial en LoyOrder.");
         await cmd.ExecuteNonQueryAsync(ct);
     }
 

@@ -90,6 +90,8 @@ public sealed class NuevoRecibo
 
 public sealed class LineaRecibo
 {
+    [JsonPropertyName("price")] public decimal? Precio { get; set; }
+    [JsonPropertyName("line_taxes")] public object[]? Impuestos { get; set; }
     [JsonPropertyName("variant_id")] public string VarianteId { get; set; } = ""; // P12
     [JsonPropertyName("quantity")] public decimal Cantidad { get; set; }          // P12
     [JsonPropertyName("line_note")] public string? Nota { get; set; }             // P12
@@ -103,6 +105,11 @@ public sealed class PagoRecibo
 
 public sealed class Recibo
 {
+    [JsonPropertyName("store_id")] public string? TiendaId { get; set; }
+    [JsonPropertyName("receipt_type")] public string? Tipo { get; set; }
+    [JsonPropertyName("cancelled_at")] public DateTimeOffset? CanceladoEn { get; set; }
+    [JsonPropertyName("line_items")] public List<LineaRecibo> Lineas { get; set; } = new();
+    [JsonPropertyName("payments")] public List<PagoRecibo> Pagos { get; set; } = new();
     [JsonPropertyName("receipt_number")] public string Numero { get; set; } = ""; // P12
     [JsonPropertyName("order")] public string? Folio { get; set; }                // P12
     [JsonPropertyName("source")] public string? Origen { get; set; }              // P12

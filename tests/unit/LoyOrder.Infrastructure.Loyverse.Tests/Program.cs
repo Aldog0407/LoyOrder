@@ -111,7 +111,7 @@ static class Afirmar
 
 // ------------------------------------------------------------------ pruebas
 
-static class Pruebas
+static partial class Pruebas
 {
     public static async Task Prueba_EnviaTokenBearerYUrlCorrecta()
     {
@@ -259,7 +259,7 @@ static class Pruebas
     public static async Task Prueba_CrearReciboMandaFolioOrigenNotaYUnSoloPago()
     {
         var (c, h, _) = Fabrica.Crear();
-        h.Responder(HttpStatusCode.OK, """{"receipt_number":"1-1001","order":"LO-0127","source":"LoyOrder","total_money":310}""");
+        h.Responder(HttpStatusCode.OK, """{"receipt_number":"1-1001","order":"LO-0127","source":"LoyOrder","source":"LoyOrder","total_money":310}""");
         var r = await c.CrearReciboAsync(ReciboDePrueba());
         Afirmar.Igual("1-1001", r.Numero, "Número de recibo:");
         Afirmar.Igual(310m, r.Total, "Total:");
@@ -290,7 +290,7 @@ static class Pruebas
     public static async Task Prueba_BuscarReciboPorFolioEncuentraLaVentaExistente()
     {
         var (c, h, _) = Fabrica.Crear();
-        h.Responder(HttpStatusCode.OK, """{"receipts":[{"receipt_number":"1-1000","order":"LO-0126"},{"receipt_number":"1-1001","order":"LO-0127"}]}""");
+        h.Responder(HttpStatusCode.OK, """{"receipts":[{"receipt_number":"1-1000","order":"LO-0126"},{"receipt_number":"1-1001","order":"LO-0127","source":"LoyOrder"}]}""");
         var r = await c.BuscarReciboPorFolioAsync("t1", "LO-0127");
         Afirmar.Igual("1-1001", r?.Numero, "Recibo encontrado:");
     }

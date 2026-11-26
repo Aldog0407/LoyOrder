@@ -17,6 +17,12 @@ public sealed class OperacionPedidosController(OperacionPedidos pedidos) : Contr
     private long Operador => long.Parse(User.FindFirstValue("sub")!,CultureInfo.InvariantCulture);
     [HttpGet]
     public async Task<IActionResult> Listar(CancellationToken ct) => Ok(await pedidos.ConsultarAsync(Operador,ct));
+    [HttpPost("{folio}/venta/reintentar")]
+    public async Task<IActionResult> Reintentar(string folio,[FromServices] IVentaRepository ventas,CancellationToken ct)
+    {
+        await ventas.ReintentarAsync(Operador,folio,ct);
+        return Accepted();
+    }
     [HttpPost("{folio}/estado")]
     public async Task<IActionResult> Cambiar(string folio,CambiarEstadoPedido datos,CancellationToken ct) =>
         Ok(await pedidos.CambiarAsync(Operador,folio,datos.Estado,datos.Motivo,ct));

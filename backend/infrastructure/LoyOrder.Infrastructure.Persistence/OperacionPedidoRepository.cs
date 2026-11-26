@@ -12,7 +12,8 @@ public sealed class OperacionPedidoRepository(NpgsqlDataSource source) : IOperac
         {
             await using var cmd = source.CreateCommand("""
                 WITH visibles AS (
-                    SELECT p.*,u.nombre AS cliente FROM public.pedido p
+                    SELECT p.*,u.nombre AS cliente,rv.estado_sincronizacion AS estado_venta,rv.numero_recibo,rv.ultimo_error AS error_venta FROM public.pedido p
+                    LEFT JOIN public.registro_venta rv ON rv.id_pedido=p.id_pedido
                     JOIN public.metodo_pago mp ON mp.id_metodo_pago=p.id_metodo_pago
                     JOIN public.empleado e ON e.id_restaurante=mp.id_restaurante
                     JOIN public.usuario eu ON eu.id_usuario=e.id_empleado
@@ -21,7 +22,7 @@ public sealed class OperacionPedidoRepository(NpgsqlDataSource source) : IOperac
                     ORDER BY (p.estado IN ('Entregado','Cancelado')),p.fecha_creacion DESC,p.id_pedido DESC LIMIT 50
                 )
                 SELECT p.id_pedido,p.folio,p.estado,p.tipo_entrega,p.fecha_creacion,p.total,p.cliente,
-                    d.nombre_producto,d.cantidad,d.precio_unitario,d.subtotal,d.indicaciones,d.id_variante,v.id_producto,v.nombre
+                    d.nombre_producto,d.cantidad,d.precio_unitario,d.subtotal,d.indicaciones,d.id_variante,v.id_producto,v.nombre,p.estado_venta,p.numero_recibo,p.error_venta
                 FROM visibles p LEFT JOIN public.detalle_pedido d ON d.id_pedido=p.id_pedido
                 LEFT JOIN public.variante_producto v ON v.id_variante=d.id_variante
                 ORDER BY (p.estado IN ('Entregado','Cancelado')),p.fecha_creacion DESC,p.id_pedido DESC,d.id_detalle
@@ -36,7 +37,7 @@ public sealed class OperacionPedidoRepository(NpgsqlDataSource source) : IOperac
                 if (!porId.TryGetValue(id,out var articulos))
                 {
                     articulos=[]; porId.Add(id,articulos);
-                    pedidos.Add(new(r.GetString(1),r.GetString(2),r.GetString(3),r.GetDateTime(4),r.GetDecimal(5),r.GetString(6),articulos));
+                    pedidos.Add(new(r.GetString(1),r.GetString(2),r.GetString(3),r.GetDateTime(4),r.GetDecimal(5),r.GetString(6),articulos,r.IsDBNull(15)?null:r.GetString(15),r.IsDBNull(16)?null:r.GetString(16),r.IsDBNull(17)?null:r.GetString(17)));
                 }
                 if (!r.IsDBNull(7)) articulos.Add(new(r.GetString(7),r.GetInt32(8),r.GetDecimal(9),r.GetDecimal(10),
                     r.IsDBNull(11) ? null : r.GetString(11),r.GetInt64(12),r.GetInt64(13),r.IsDBNull(14) ? null : r.GetString(14)));
@@ -75,7 +76,7 @@ public sealed class OperacionPedidoRepository(NpgsqlDataSource source) : IOperac
             await using var evento = new NpgsqlCommand("SELECT id_historial FROM public.historial_estado WHERE id_pedido=$1 ORDER BY id_historial DESC LIMIT 1",conexion,tx);
             evento.Parameters.AddWithValue(id);
             var historial = (long)(await evento.ExecuteScalarAsync(ct))!;
-            await NotificacionPedidoRepository.EncolarAsync(conexion,tx,id,historial,folio,estado,tipoEntrega,total,ct);
+            await NotificacionPedidoRepository.EncolarAsync(conexion,tx,id,historial,folio,estado,tipoEntrega,total,ct,motivo);
             await tx.CommitAsync(ct);
             return new(folio,estado);
         }

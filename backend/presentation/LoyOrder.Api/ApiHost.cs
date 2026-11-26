@@ -36,6 +36,11 @@ public static class ApiHost
         builder.Services.AddScoped<INotificacionPedidoRepository, NotificacionPedidoRepository>();
         builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(
             builder.Configuration["Pedidos:ZonaHoraria"] ?? "America/Mexico_City"));
+        builder.Services.AddScoped<IVentaRepository, VentaRepository>();
+        builder.Services.AddScoped<IDestinoVenta, LoyOrder.Infrastructure.Loyverse.DestinoVentaLoyverse>();
+        builder.Services.AddScoped<RegistrarVentas>();
+        var ventasHabilitadas=builder.Configuration.GetValue<bool>("Ventas:Habilitado");
+        if(ventasHabilitadas) builder.Services.AddHostedService<VentasPendientes>();
         configurar?.Invoke(builder.Services);
         var app = builder.Build();
         app.UseExceptionHandler();
@@ -51,6 +56,7 @@ public static class ApiHost
             var desafios = context.RequestServices.GetService<IDesafioCorreoRepository>();
             var checkout = context.RequestServices.GetRequiredService<ICrearPedidoRepository>();
             return await repo.DisponibleAsync(ct) && await checkout.DisponibleAsync(ct) && (desafios is null || await desafios.DisponibleAsync(ct))
+                && (!ventasHabilitadas || await context.RequestServices.GetRequiredService<IVentaRepository>().DisponibleAsync(ct))
                 ? Results.Ok(new { estado = "Disponible" })
                 : Results.Problem(statusCode: 503, title: "Base de datos no disponible o esquema no preparado.");
         });

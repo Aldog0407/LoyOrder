@@ -167,3 +167,8 @@ Configurar `CorreoAutenticacion__ClaveCodigo` con una clave aleatoria en Base64 
 ## Integración de pedidos del 25 de noviembre
 
 El checkout, historial y panel del operador utilizan pedidos persistidos mediante la API. Antes de ejecutar esta versión, aplicar `LoyOrderNotificaciones.sql` y `LoyOrderCheckout.sql`, además de las migraciones previas. Ver el contrato, activación del correo, límites y evidencia en [Pedidos del 25 de noviembre](../docs/ACTIVIDAD_PEDIDOS_2026_11_25.md). La parte de inventario real requiere el token de Loyverse; impresión y envío confirmado de ventas siguen pendientes.
+
+
+## Registro de ventas al cierre
+
+Implementada la actividad 7.2.13 con registro pendiente, confirmación y reconciliación. Aplicar `LoyOrderVentas.sql` y habilitar `Ventas__Habilitado` para procesar pedidos Entregados. El operador ve el estado y el recibo. Ver [contrato y evidencia](../docs/ACTIVIDAD_7_2_13.md), incluidos los requisitos del costo de envío y las limitaciones de reintento.

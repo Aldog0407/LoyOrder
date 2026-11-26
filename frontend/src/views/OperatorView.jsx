@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { obtenerPedidosOperador, cambiarEstadoPedido } from '../services/pedidos.js';
+import { obtenerPedidosOperador, cambiarEstadoPedido, reintentarVenta } from '../services/pedidos.js';
 import { money } from '../utils/formato.js';
 import Modal from '../components/Modal.jsx';
 
@@ -36,7 +36,8 @@ export default function OperatorView() {
     setActualizando(folio);
     setError('');
     try {
-      await cambiarEstadoPedido(folio, estado, motivo);
+      if (estado === 'REINTENTAR_VENTA') await reintentarVenta(folio);
+      else await cambiarEstadoPedido(folio, estado, motivo);
       setCancelando(null);
       ocupado.current = false;
       await cargar();
@@ -57,6 +58,9 @@ export default function OperatorView() {
         <p>{p.cliente} · {p.tipoEntrega} · {new Date(p.fechaCreacion).toLocaleString('es-MX')}</p>
         <ul>{p.articulos.map((a, i) => <li key={i}>{a.cantidad} × {a.nombreProducto}{a.variante ? ` · ${a.variante}` : ''}</li>)}</ul>
         <strong>{money(p.total)}</strong>
+        {p.estado === 'Entregado' && <div role="status"><p>Venta en Loyverse: {p.estadoVenta ?? 'Pendiente'}{p.numeroRecibo ? ` · Recibo ${p.numeroRecibo}` : ''}</p>
+          {p.errorVenta && <p className="checkout-error">{p.errorVenta}</p>}
+          {['Fallido', 'Por verificar'].includes(p.estadoVenta) && <button className="button outline" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'REINTENTAR_VENTA')}>{p.estadoVenta === 'Por verificar' ? 'Consultar recibo otra vez' : 'Reintentar registro de venta'}</button>}</div>}
       </div>
       <div className="history-actions">
         {p.estado === 'Recibido' && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'En preparación')}>Aceptar y preparar</button>}

@@ -34,3 +34,12 @@ El checkout ahora crea pedidos persistidos y el historial consulta PostgreSQL. E
 El estado del 24 de noviembre que aparece arriba es histórico. Las conexiones de checkout, historial, estados y avisos que figuraban pendientes ya están implementadas. La impresión física y la venta confirmada en Loyverse continúan pendientes. La prueba de stock real espera el token de Carlos. También falta aplicar las migraciones nuevas y verificar este recorrido en el entorno local del equipo.
 
 Contrato, migraciones y evidencia en [Pedidos del 25 de noviembre](ACTIVIDAD_PEDIDOS_2026_11_25.md).
+
+
+## Avance adicional de la noche del 25 al 26 de noviembre
+
+Se integró el registro persistido de ventas Entregadas con Loyverse, con reclamación exclusiva, copia de datos, reconciliación y reintentos por operador. La cuenta real de pruebas devolvió recibos confirmados; Aldo ya verificó la sincronización del catálogo. Ver [actividad 7.2.13](ACTIVIDAD_7_2_13.md). Las menciones anteriores a esta actividad pendiente describen el estado previo. El jueves 26 es el último día de trabajo previsto por Aldo y el viernes 27 se reserva para exponer. Siguen pendientes Swagger, evidencia de correos en su entorno, cobertura y la integración física de despacho.
+
+Aldo confirmó el recorrido completo por la pantalla de operación y el recibo de Loyverse en su PostgreSQL local durante la prueba del 26 de noviembre. La cuenta de operador se creó mediante registro y verificación y luego se asignó al restaurante desde pgAdmin.
+
+Aldo confirmó también la recepción en Gmail de los avisos del pedido y los cambios de estado en su recorrido local.

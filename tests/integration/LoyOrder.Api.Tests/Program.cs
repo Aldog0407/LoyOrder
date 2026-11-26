@@ -23,6 +23,7 @@ await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60"], services 
     services.AddSingleton<IHistorialPedidoRepository>(new PedidosPrueba());
     services.AddSingleton<ICrearPedidoRepository>(new CheckoutPrueba());
     services.AddSingleton<IOperacionPedidoRepository>(new OperacionPrueba());
+    services.AddSingleton<IVentaRepository>(new VentasPrueba());
     services.AddSingleton(TimeZoneInfo.Utc);
     services.AddSingleton<IUsuarioRepository>(users);
     services.AddSingleton<TimeProvider>(reloj);
@@ -186,15 +187,19 @@ async Task VerificarAcceso()
     await Check(HttpMethod.Get,"/api/v1/pedidos?pagina=0",400);
     client.DefaultRequestHeaders.Authorization=null;
     await Check(HttpMethod.Get,"/api/v1/operacion/pedidos",401);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/venta/reintentar",401);
     await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",401,new {estado="En preparación"});
     foreach (var cuentaOperacion in new[] { "cliente@prueba.test","admin@prueba.test" })
     {
         client.DefaultRequestHeaders.Authorization=new("Bearer",await Login(cuentaOperacion));
         await Check(HttpMethod.Get,"/api/v1/operacion/pedidos",403);
+        await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/venta/reintentar",403);
         await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",403,new {estado="En preparación"});
     }
     client.DefaultRequestHeaders.Authorization=new("Bearer",await Login("operador@prueba.test"));
     await Check(HttpMethod.Get,"/api/v1/operacion/pedidos",200);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/venta/reintentar",202);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/AJENO/venta/reintentar",404);
     await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",200,new {estado="En preparación"});
     await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",400,new {estado="Cancelado"});
     await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",400,new {estado="Inventado"});
@@ -420,4 +425,12 @@ sealed class OperacionPrueba : IOperacionPedidoRepository
         Task.FromResult<IReadOnlyList<PedidoOperativo>>([new("PRUEBA-1","Recibido","Recolección",DateTime.UtcNow,100,"Cliente",[])]);
     public Task<EstadoPedidoActualizado> CambiarAsync(long operador,string folio,string estado,string? motivo,CancellationToken ct) =>
         folio == "PRUEBA-1" ? Task.FromResult(new EstadoPedidoActualizado(folio,estado)) : throw new PedidoNoEncontradoException();
+}
+
+sealed class VentasPrueba : IVentaRepository
+{
+    public Task<bool> DisponibleAsync(CancellationToken ct)=>Task.FromResult(true);
+    public Task<TrabajoVenta?> TomarAsync(CancellationToken ct)=>Task.FromResult<TrabajoVenta?>(null);
+    public Task FinalizarAsync(TrabajoVenta t,ResultadoVenta r,CancellationToken ct)=>Task.CompletedTask;
+    public Task ReintentarAsync(long operador,string folio,CancellationToken ct)=>folio=="PRUEBA-1"?Task.CompletedTask:throw new PedidoNoEncontradoException();
 }

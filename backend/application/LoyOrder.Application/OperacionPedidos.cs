@@ -3,7 +3,7 @@ using LoyOrder.Domain;
 namespace LoyOrder.Application;
 
 public sealed record PedidoOperativo(string Folio, string Estado, string TipoEntrega, DateTime FechaCreacion,
-    decimal Total, string Cliente, IReadOnlyList<ArticuloPedido> Articulos);
+    decimal Total, string Cliente, IReadOnlyList<ArticuloPedido> Articulos, string? EstadoVenta=null, string? NumeroRecibo=null, string? ErrorVenta=null);
 public sealed record EstadoPedidoActualizado(string Folio, string Estado);
 public interface IOperacionPedidoRepository
 {

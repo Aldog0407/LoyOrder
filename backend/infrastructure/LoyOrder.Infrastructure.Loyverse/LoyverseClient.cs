@@ -133,11 +133,13 @@ public sealed class LoyverseClient : ILoyverseClient
 
     public async Task<Recibo?> BuscarReciboPorFolioAsync(string tiendaId, string folio, int revisarUltimos = 100, CancellationToken ct = default)
     {
-        var limite = Math.Clamp(revisarUltimos, 1, 250);
-        var url = ConQuery("receipts", new() { ["store_id"] = tiendaId, ["limit"] = limite.ToString(CultureInfo.InvariantCulture) });
-        using var resp = await EnviarAsync(() => new HttpRequestMessage(HttpMethod.Get, url), null, true, ct).ConfigureAwait(false);
-        var pagina = await resp.Content.ReadFromJsonAsync<PaginaRecibos>(Json, ct).ConfigureAwait(false);
-        return pagina?.Elementos.FirstOrDefault(r => r.Folio == folio);
+        // Filtro exacto y paginación completa. Los 100 últimos recibos no bastan para reconciliar.
+        var recibos=await ObtenerTodosAsync<PaginaRecibos,Recibo>("receipts",new() {
+            ["store_id"]=tiendaId,["order"]=folio,["source"]="LoyOrder"
+        },null,ct).ConfigureAwait(false);
+        var coincidencias=recibos.Where(r=>r.Folio==folio && r.Origen=="LoyOrder").ToList();
+        if(coincidencias.Count>1) throw new LoyverseException("Hay varios recibos con el mismo folio; se requiere revisión.");
+        return coincidencias.SingleOrDefault();
     }
 
     // ------------------------------------------------------------------ paginación

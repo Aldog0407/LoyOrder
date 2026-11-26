@@ -162,6 +162,7 @@ static class CheckoutPostgres
             operacion.CambiarAsync(operador,agotable.Folio,"Cancelado","Sin ingrediente",default));
         Exigir(await Valor<long>($"SELECT count(*) FROM historial_estado WHERE id_pedido={agotable.IdPedido}")==2,"Se duplicó una cancelación concurrente");
         Exigir(await Valor<long>($"SELECT count(*) FROM notificacion WHERE id_pedido={agotable.IdPedido}")==2,"Se duplicó el aviso de cancelación");
+        Exigir(await Valor<long>($"SELECT count(*) FROM notificacion WHERE id_pedido={agotable.IdPedido} AND mensaje LIKE '%Motivo: Sin ingrediente%'")==1,"El aviso de cancelación omite el motivo");
         Ok("máximo de cinco intentos y cancelación concurrente con motivo obligatorio");
         return total;
     }
