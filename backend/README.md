@@ -177,3 +177,17 @@ Implementada la actividad 7.2.13 con registro pendiente, confirmación y reconci
 ## Documentación de la API disponible
 
 Swagger está disponible en `/swagger` y OpenAPI en `/openapi/v1.json` al ejecutar en Development. Ver [actividad 7.4.1](../docs/ACTIVIDAD_7_4_1.md). Las menciones anteriores a Swagger pendiente corresponden al estado previo.
+
+## Edición del menú (7.2.8)
+
+Aplica `database/scripts/LoyOrderEdicionMenu.sql` en la base que usa la API
+antes de iniciar esta versión. La migración se puede ejecutar nuevamente.
+
+Desde **Administración → Configurar restaurante → Editar menú**, selecciona un
+producto disponible y guarda su nombre, descripción o URL de imagen. Un campo
+vacío vuelve a mostrar el valor sincronizado. Los datos locales sobreviven a la
+sincronización. Loyverse sigue administrando precios, inventario y disponibilidad.
+
+- `GET /api/v1/admin/menu` lista productos del restaurante del administrador.
+- `POST /api/v1/admin/menu/{id}/editar` guarda los tres campos locales y devuelve
+  204. Usa `null` para restablecer el valor de Loyverse.

@@ -27,6 +27,8 @@ public static class ApiHost
         builder.Services.AddScoped<Estaciones>();
         builder.Services.AddScoped<IMenuRepository, MenuRepository>();
         builder.Services.AddScoped<ConsultarMenu>();
+        builder.Services.AddScoped<IEdicionMenuRepository, EdicionMenuRepository>();
+        builder.Services.AddScoped<EditarMenu>();
         builder.AgregarSincronizacion();
         builder.Services.AddScoped<IPedidoClienteRepository, PedidoClienteRepository>();
         builder.Services.AddScoped<PedidosCliente>();

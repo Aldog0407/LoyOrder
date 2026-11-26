@@ -17,6 +17,7 @@ public sealed class Errores(IProblemDetailsService problemas, ILogger<Errores> l
             CheckoutCambioException => (409, error.Message),
             PedidoNoEncontradoException => (404, "Pedido no encontrado."),
             CalificacionNoPermitidaException => (409, "Solo se puede calificar una vez un pedido entregado."),
+            ProductoMenuNoEncontradoException => (404, "Producto del menú no encontrado."),
             EstacionNoEncontradaException => (404, "Estación, impresora o asignación no encontrada."),
             ConflictoEstacionException => (409, error.Message),
             AdministradorEstacionException => (403, "No es posible administrar las estaciones."),

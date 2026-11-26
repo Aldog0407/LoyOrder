@@ -198,7 +198,7 @@ public sealed class CrearPedidoRepository(NpgsqlDataSource source) : ICrearPedid
         long restaurante, long[] ids, bool bloquear, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand("""
-            SELECT v.id_variante,v.id_loyverse,p.nombre,v.precio,v.controla_inventario
+            SELECT v.id_variante,v.id_loyverse,COALESCE(p.nombre_menu,p.nombre),v.precio,v.controla_inventario
               FROM public.variante_producto v JOIN public.producto p ON p.id_producto=v.id_producto
               JOIN public.categoria c ON c.id_categoria=p.id_categoria
              WHERE c.id_restaurante=$1 AND v.id_variante=ANY($2) AND c.activo AND p.disponible AND v.disponible AND v.precio>0

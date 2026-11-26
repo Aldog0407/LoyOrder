@@ -76,6 +76,7 @@ if ($DatosSemilla) {
 CorrerArchivo "LoyOrderNotificaciones.sql"          # avisos persistidos por cambio de estado
 CorrerArchivo "LoyOrderCheckout.sql"                # pedidos persistidos e idempotencia, después de la semilla
 CorrerArchivo "LoyOrderVentas.sql"                  # registro y reconciliación de ventas
+CorrerArchivo "LoyOrderEdicionMenu.sql"            # datos locales del menú
 Write-Host ("  Tablas: " + (Consulta "loyorder" "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'"))
 
 # 2. Usuario de la aplicación

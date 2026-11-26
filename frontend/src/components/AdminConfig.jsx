@@ -3,6 +3,7 @@ import { paymentCatalog } from '../config/defaults.js';
 import { useStore } from '../state/StoreContext.jsx';
 import { isOpen, validateConfig } from '../utils/restaurant.js';
 import { loyverseAdapter } from '../services/loyverseAdapter.js';
+import EdicionMenu from './EdicionMenu.jsx';
 import EstacionesConfig from './EstacionesConfig.jsx';
 
 export default function AdminConfig() {
@@ -49,6 +50,7 @@ export default function AdminConfig() {
       <section className="surface settings-card"><div className="settings-card-head"><span className="settings-symbol">🖨</span><div><h2>Impresora de caja</h2><p>Adaptador de hardware simulado.</p></div></div><div className="printer-status"><div><strong>Impresora térmica de caja</strong><small>Conectividad simulada</small></div><span className={`badge ${draft.printer.connected ? 'success' : 'error'}`}>{draft.printer.connected ? '● Conectada (demo)' : '● Desconectada'}</span></div><div className="printer-actions"><button className="button outline" type="button" onClick={togglePrinter}>{draft.printer.connected ? 'Desconectar demo' : 'Simular conexión'}</button><button className="button primary" type="button" disabled={!draft.printer.connected || printing} onClick={testPrinter}>{printing ? 'Procesando…' : 'Imprimir ticket de prueba'}</button></div><div className="ticket-result" role="status">{testResult}</div><div className="integration-note">No se emiten comandos ESC/POS ni se descubre hardware físico.</div></section>
       <div className="settings-save"><span>Los cambios se guardan en este navegador.</span><button className="button primary" type="submit">Guardar configuración</button></div>
     </form>
+    <EdicionMenu/>
     <EstacionesConfig/>
   </main>;
 }
