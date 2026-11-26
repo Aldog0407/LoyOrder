@@ -1,0 +1,23 @@
+.estaciones-config { margin-top: 24px; }
+.estaciones-config .estaciones-toolbar { display: flex; justify-content: flex-end; flex-wrap: wrap; margin-bottom: 12px; }
+.estaciones-config fieldset { display: grid; gap: 14px; }
+.estaciones-config .settings-field { display: grid; gap: 7px; min-width: 0; }
+.estaciones-config .settings-field select {
+  width: 100%; min-height: 44px; padding: 10px 12px; font: inherit;
+  color: inherit; background: #fff; border: 1px solid #e6ddd0; border-radius: 10px;
+}
+.estaciones-config .settings-field select:focus-visible { outline: 2px solid #ea580c; outline-offset: 2px; }
+.estaciones-config .settings-field small { font-size: 12px; font-weight: 400; line-height: 1.5; }
+.estaciones-config .estaciones-toggle { margin: 0; }
+.estaciones-config .estaciones-subtitulo { margin-top: 24px; }
+.estaciones-config .estaciones-aviso, .estaciones-config .estaciones-error { padding: 10px 12px; border-radius: 8px; }
+.estaciones-config .estaciones-aviso { color: #166534; background: #edf8ef; }
+.estaciones-config .estaciones-error { color: #991b1b; background: #fff1f0; }
+.estaciones-config .printer-status { gap: 12px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.estaciones-config .printer-actions { flex-wrap: wrap; }
+@media (max-width: 700px) { .estaciones-config .settings-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.estaciones-config .estaciones-toolbar { align-items: center; justify-content: space-between; gap: 12px; }
+.estaciones-config .estaciones-dialog { width: min(560px, 95vw); max-height: 85vh; overflow: auto; }
+.estaciones-config .estaciones-dialog form { padding-top: 12px; }
+.estaciones-config .estaciones-dialog h4 { margin-bottom: 8px; }
