@@ -2,7 +2,7 @@
 
 ## Carpeta y Git
 
-Trabajar en `LoyOrder-Git`, sobre main. No crear ramas. El commit `fa178f1` contiene pedidos, operación y avisos; `62ec8a4` registra y reconcilia ventas en Loyverse. El siguiente commit de esta sesión cierra OpenAPI/Swagger. Antes de continuar, consultar `git status -sb` y `git log -3 --oneline`. El 26 es el último día de trabajo y el 27 es la exposición.
+Trabajar en `LoyOrder-Git`, sobre main. No crear ramas. El commit `fa178f1` contiene pedidos, operación y avisos; `62ec8a4` registra y reconcilia ventas en Loyverse. El commit `23a777f` cierra OpenAPI/Swagger. El reporte de cobertura y su generador se guardan en el commit posterior titulado `test: medir cobertura y conservar evidencia de pruebas`. Antes de continuar, consultar `git status -sb` y `git log -3 --oneline`. El 26 es el último día de trabajo y el 27 es la exposición.
 
 ## Comprobado
 
@@ -23,12 +23,16 @@ La base local ya recibió las migraciones de sincronización, autenticación por
 
 Se abrió temporalmente el horario para probar de madrugada. El horario original a restaurar es 09:00–22:00; no asumir que ya se restauró sin confirmación de Aldo.
 
-## Prioridad pendiente
+## Estado y prioridades siguientes
 
-1. Medir cobertura y generar reporte reproducible para 7.3.10. No inventar porcentajes a partir del número de pruebas.
+1. Reporte 7.3.10 ya medido y reproducible en `ACTIVIDAD_7_3_10.md`: backend unitario 74.70% de líneas y combinado con HTTP/PostgreSQL 74.20%. JavaScript medido 96.71%, sin componentes JSX. No convertir estas cifras en porcentaje de avance del proyecto.
 2. Reunir evidencia y un guion corto del recorrido de exposición.
 3. Despacho 7.2.23: los estados y avisos funcionan; la impresión sigue pendiente. Aldo confirmó el 26 que el módulo ESC/POS de Carlos todavía no está disponible. No marcar impresión ni despacho completo como terminados.
 4. Para venta con costo de envío, vincular `Ventas__IdVarianteEnvio` a una variante real y comprobar ese recorrido. El flujo confirmado con Loyverse fue Recolección.
 5. Validar el despliegue entre equipos con sus responsables. No prometer pruebas físicas sin impresora disponible.
 
 Ver `ACTIVIDAD_7_2_13.md`, `ACTIVIDAD_7_4_1.md` y los estados históricos de `docs/README.md`.
+
+## Punto de parada preparado el 26 por la mañana
+
+Ventas, avisos, acceso de operador, Swagger y reporte de cobertura quedaron guardados en commits locales de main. Consultar `git status -sb` para verificar qué falta subir; no asumir que el push se hizo. Para retomar: verificar arranque, abrir Swagger y ensayar el recorrido de exposición con las cuentas propias. El despacho completo espera la impresión de Carlos, que Aldo confirmó que aún no está disponible.

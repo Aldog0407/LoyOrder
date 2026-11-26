@@ -25,3 +25,6 @@ Thumbs.db
 *.log
 logs/
 publish/
+
+# Evidencia generada por las pruebas; el resumen revisado se guarda en docs.
+TestResults/

@@ -48,3 +48,8 @@ Aldo confirmó también la recepción en Gmail de los avisos del pedido y los ca
 ## Documentación de la API disponible
 
 Swagger está disponible en `/swagger` y OpenAPI en `/openapi/v1.json` al ejecutar en Development. Ver [actividad 7.4.1](ACTIVIDAD_7_4_1.md). Las menciones anteriores a Swagger pendiente corresponden al estado previo.
+
+
+## Reporte de pruebas con cobertura · 26 de noviembre
+
+Disponible [actividad 7.3.10](ACTIVIDAD_7_3_10.md) con medición reproducible, alcances separados de pruebas unitarias e integración y evidencia XML/LCOV. Los pendientes anteriores de cobertura describen el estado histórico. Para retomar el proyecto, consultar [punto de continuación](PUNTO_CONTINUACION.md). La impresión permanece pendiente del módulo de Carlos.
