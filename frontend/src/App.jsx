@@ -14,6 +14,7 @@ import TrackingView from './views/TrackingView.jsx';
 import StoredTrackingView from './views/StoredTrackingView.jsx';
 import HistoryView from './views/HistoryView.jsx';
 import AdminDashboard from './views/AdminDashboard.jsx';
+import ReportesView from './views/ReportesView.jsx';
 import { useStore } from './state/StoreContext.jsx';
 
 function Toast() {
@@ -49,6 +50,7 @@ export default function App() {
     <Route path="/seguimiento/:folio" element={<ProtectedRoute roles={['CLIENTE']}><StoredTrackingView key={pathname}/></ProtectedRoute>}/>
     <Route path="/historial" element={<ProtectedRoute roles={['CLIENTE']}><HistoryView/></ProtectedRoute>}/>
     <Route path="/admin" element={<ProtectedRoute roles={['ADMINISTRADOR']}><AdminDashboard/></ProtectedRoute>}/>
+    <Route path="/admin/reportes" element={<ProtectedRoute roles={['ADMINISTRADOR']}><ReportesView/></ProtectedRoute>}/>
     <Route path="/admin/configuracion" element={<ProtectedRoute roles={['ADMINISTRADOR']}><AdminConfig/></ProtectedRoute>}/>
     <Route path="*" element={<Navigate replace to={rutaInicial(usuario)}/>}/>
   </Routes><footer className="site-footer"><div className="container"><span className="logo"><span className="logo-mark">✳</span>Loy<span>Order</span></span><p>Hecho con sabor y cariño · Demo React © 2026</p></div></footer>{usuario?.rol === 'CLIENTE' && <button className="cart-fab" aria-label="Abrir carrito" onClick={() => dispatch({ type: 'OPEN_CART' })}>🛒{count > 0 && <b>{count}</b>}</button>}{usuario?.rol === 'CLIENTE' && <CartDrawer/>}<Toast/></>;

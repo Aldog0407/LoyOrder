@@ -10,7 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function peticion(ruta, datos, metodo = 'POST', token) {
+export async function peticion(ruta, datos, metodo = 'POST', token, tipoRespuesta = 'json') {
   let respuesta;
   try {
     respuesta = await fetch(base + ruta, {
@@ -22,6 +22,7 @@ export async function peticion(ruta, datos, metodo = 'POST', token) {
   } catch {
     throw new Error('No se pudo conectar con la API. Comprueba que esté encendida.');
   }
+  if (respuesta.ok && tipoRespuesta === 'blob') return respuesta.blob();
   const cuerpo = await respuesta.json().catch(() => ({}));
   if (!respuesta.ok) {
     const valor = respuesta.headers.get('Retry-After');

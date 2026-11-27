@@ -24,6 +24,7 @@ public sealed class Errores(IProblemDetailsService problemas, ILogger<Errores> l
             TicketNoPermitidoException => (409, error.Message),
             ImpresoraNoConfiguradaException => (409, error.Message),
             ImpresoraNoDisponibleException => (503, "No se pudo conectar con la impresora. Revisa que esté encendida y conectada a la red."),
+            AccesoReporteException => (403, "La cuenta no administra un restaurante activo para consultar reportes."),
             SolicitudInvalidaException => (400, error.Message),
             OrigenNoAutorizadoException => (502, "El token de Loyverse no es válido"),
             OrigenNoDisponibleException => (503, "No fue posible conectar con Loyverse, intenta más tarde"),

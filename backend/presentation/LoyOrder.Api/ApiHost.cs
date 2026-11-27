@@ -40,6 +40,8 @@ public static class ApiHost
         builder.Services.AddScoped<IOperacionPedidoRepository, OperacionPedidoRepository>();
         builder.Services.AddScoped<IEdicionPedidoRepository, EdicionPedidoRepository>();
         builder.Services.AddScoped<EdicionPedidos>();
+        builder.Services.AddScoped<IReporteRepository, ReporteRepository>();
+        builder.Services.AddScoped<ConsultarReportes>();
         builder.Services.AddScoped<OperacionPedidos>();
         builder.Services.AddScoped<INotificacionPedidoRepository, NotificacionPedidoRepository>();
         builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(

@@ -100,7 +100,7 @@ export async function cerrar() {
 }
 
 
-export async function peticionAutenticada(ruta, datos, metodo = 'POST', renovarSiHaceFalta = true) {
+export async function peticionAutenticada(ruta, datos, metodo = 'POST', renovarSiHaceFalta = true, tipoRespuesta = 'json') {
   if (!sesion || cerrando) throw new Error('Inicia sesión para continuar.');
   if (renovacion) await renovacion;
   if (!sesion || cerrando) throw new Error('Inicia sesión para continuar.');
@@ -110,7 +110,7 @@ export async function peticionAutenticada(ruta, datos, metodo = 'POST', renovarS
   }
   if (!sesion || cerrando) throw new Error('Inicia sesión para continuar.');
   try {
-    return await peticion(ruta, datos, metodo, sesion.accessToken);
+    return await peticion(ruta, datos, metodo, sesion.accessToken, tipoRespuesta);
   } catch (error) {
     if (error.status === 401) finalizar(true);
     throw error;
