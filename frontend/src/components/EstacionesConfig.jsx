@@ -21,6 +21,26 @@ const nuevaEstacion = () => ({ idEstacion: null, nombre: '', idImpresora: '', ac
 const nuevaAsignacion = () => ({ estacion: '', tipo: 'categoria', elemento: '' });
 const etiquetaVariante = v => `${v.producto}${v.variante ? ` · ${v.variante}` : ''}`;
 
+function FormularioEstaciones({ titulo, ocupado, error, guardar, deshabilitado, onSubmit, onClose, children }) {
+  return <Modal label={titulo} className="estaciones-dialog" onClose={onClose}>
+    <h3>{titulo}</h3>
+    <form onSubmit={onSubmit}>
+      <fieldset disabled={ocupado}>
+        {children}
+        <div className="estaciones-acciones">
+          <button className="button outline" type="button" onClick={onClose}>Cancelar</button>
+          <button className="button primary" type="submit" disabled={deshabilitado}>{guardar}</button>
+        </div>
+      </fieldset>
+      {error && <p role="alert" className="estaciones-error">{error}</p>}
+    </form>
+  </Modal>;
+}
+
+function EstadoEstacion({ activa }) {
+  return <span className={`estaciones-estado${activa ? ' activa' : ''}`}>{activa ? 'Activa' : 'Inactiva'}</span>;
+}
+
 export default function EstacionesConfig() {
   const [datos, setDatos] = useState(null);
   const [impresora, setImpresora] = useState(nuevaImpresora);
@@ -101,58 +121,95 @@ export default function EstacionesConfig() {
   const opciones = datos ? (asignacion.tipo === 'categoria'
     ? datos.categorias.filter(c => c.activa).map(c => ({ id: c.idCategoria, nombre: c.nombre }))
     : datos.variantes.filter(v => v.disponible).map(v => ({ id: v.idVariante, nombre: etiquetaVariante(v) }))) : [];
+  const cerrarModal = () => { if (!ocupado) setModal(null); };
 
   return <section className="surface settings-card estaciones-config">
-    <div className="settings-card-head"><span className="settings-symbol">🖨</span><div><h2>Estaciones de preparación</h2><p>Distribuye las categorías y variantes entre las impresoras de cocina.</p></div></div>
-    <div className="estaciones-toolbar"><button className="button outline" type="button" disabled={ocupado} onClick={() => void ejecutar(null)}>{ocupado ? 'Procesando…' : 'Actualizar lista'}</button></div>
+    <div className="estaciones-toolbar">
+      <div className="settings-card-head"><span className="settings-symbol">🖨</span><div><h2>Estaciones de preparación</h2><p>Distribuye las categorías y variantes entre las impresoras de cocina.</p></div></div>
+      <button className="button outline estaciones-accion-breve" type="button" disabled={ocupado} onClick={() => void ejecutar(null)}>{ocupado ? 'Procesando…' : 'Actualizar lista'}</button>
+    </div>
     <div role="status">{aviso && <p className="estaciones-aviso">{aviso}</p>}</div>{error && !modal && <p role="alert" className="estaciones-error">{error}</p>}
     {!datos ? <p>{error ? 'No se cargó la configuración.' : 'Cargando configuración…'}</p> : <>
       <p className="settings-hint">El estado activo es una configuración, no una prueba de conectividad. Aquí no se envían comandas.</p>
-      <div className="settings-grid">
-        <section className="surface settings-card">
+      <div className="estaciones-listas">
+        <section className="estaciones-panel">
           <div className="estaciones-toolbar"><h3>Impresoras de cocina</h3><button className="button primary" type="button" disabled={ocupado} onClick={() => { setImpresora(nuevaImpresora()); setError(''); setModal('impresora'); }}>+ Nueva impresora</button></div>
-          {datos.impresoras.map(i => <div key={i.idImpresora} className="printer-status"><div><strong>{i.nombre}</strong><small>{i.direccionIp} · {i.activa ? 'Activa' : 'Inactiva'}</small></div><button type="button" className="button outline" disabled={ocupado} onClick={() => { setImpresora({ ...i }); setError(''); setModal('impresora'); }}>Editar</button></div>)}
-          {modal === 'impresora' && <Modal label="Impresora de cocina" className="estaciones-dialog" onClose={() => { if (!ocupado) setModal(null); }}><form onSubmit={enviarImpresora}>
-            <fieldset disabled={ocupado} style={{ border: 0, padding: 0, minWidth: 0 }}>
-              <h4>{impresora.idImpresora ? 'Editar impresora' : 'Nueva impresora'}</h4>
-              <label className="settings-field">Nombre<input required maxLength={100} pattern=".*\S.*" value={impresora.nombre} onChange={e => setImpresora({ ...impresora, nombre: e.target.value })}/></label>
-              <label className="settings-field">Dirección IP<input required maxLength={45} placeholder="192.0.2.12" autoComplete="off" spellCheck={false} autoCapitalize="none" aria-describedby="estaciones-ip-ayuda" pattern="[0-9A-Fa-f:.]+" value={impresora.direccionIp} onChange={e => setImpresora({ ...impresora, direccionIp: e.target.value.replace(/[^0-9a-fA-F:.]/g, '') })}/><small id="estaciones-ip-ayuda">IPv4: 192.0.2.12 · IPv6: 2001:db8::12 (máx. 45 caracteres).</small>{impresora.direccionIp && !ipValida(impresora.direccionIp) && <small className="estaciones-error">Introduce una dirección IP completa y válida.</small>}</label>
-              <label className="settings-payment estaciones-toggle"><span><b>Activa</b><small>Habilitar en la configuración</small></span><input type="checkbox" checked={impresora.activa} onChange={e => setImpresora({ ...impresora, activa: e.target.checked })}/></label>
-              <div className="printer-actions"><button className="button primary" type="submit" disabled={!nombreValido(impresora.nombre) || !ipValida(impresora.direccionIp)}>Guardar impresora</button><button className="button outline" type="button" onClick={() => setImpresora(nuevaImpresora())}>Limpiar</button></div>
-            </fieldset>
-          {error && <p role="alert" className="estaciones-error">{error}</p>}</form></Modal>}
+          {!datos.impresoras.length && <p className="muted">Sin impresoras de cocina.</p>}
+          {datos.impresoras.map(i => <div key={i.idImpresora} className="estaciones-fila">
+            <div><strong>{i.nombre}</strong><small className="estaciones-secundario">{i.direccionIp}</small></div>
+            <div className="estaciones-acciones">
+              <EstadoEstacion activa={i.activa}/>
+              <button type="button" className="button outline estaciones-accion-breve" aria-label={`Editar impresora ${i.nombre}`} disabled={ocupado} onClick={() => { setImpresora({ ...i }); setError(''); setModal('impresora'); }}>Editar</button>
+            </div>
+          </div>)}
         </section>
-        <section className="surface settings-card">
+        <section className="estaciones-panel">
           <div className="estaciones-toolbar"><h3>Estaciones</h3><button className="button primary" type="button" disabled={ocupado} onClick={() => { setEstacion(nuevaEstacion()); setError(''); setModal('estacion'); }}>+ Nueva estación</button></div>
-          {datos.estaciones.map(s => <div className="printer-status" key={s.idEstacion}><div><strong>{s.nombre}</strong><small>{impresoraDe(s.idImpresora)?.nombre ?? 'Impresora no disponible'} · {s.activa ? 'Activa' : 'Inactiva'}</small></div><button type="button" className="button outline" disabled={ocupado} onClick={() => { setEstacion({ ...s }); setError(''); setModal('estacion'); }}>Editar</button></div>)}
-          {modal === 'estacion' && <Modal label="Estación de preparación" className="estaciones-dialog" onClose={() => { if (!ocupado) setModal(null); }}><form onSubmit={enviarEstacion}>
-            <fieldset disabled={ocupado} style={{ border: 0, padding: 0, minWidth: 0 }}>
-              <h4>{estacion.idEstacion ? 'Editar estación' : 'Nueva estación'}</h4>
-              <label className="settings-field">Nombre<input required maxLength={100} pattern=".*\S.*" value={estacion.nombre} onChange={e => setEstacion({ ...estacion, nombre: e.target.value })}/></label>
-              <label className="settings-field">Impresora<select required value={estacion.idImpresora} onChange={e => setEstacion({ ...estacion, idImpresora: e.target.value, activa: estacion.activa && Boolean(impresoraDe(Number(e.target.value))?.activa) })}><option value="">Seleccionar</option>{impresorasLibres.map(i => <option key={i.idImpresora} value={i.idImpresora}>{i.nombre}{i.activa ? '' : ' (inactiva)'}</option>)}</select></label>
-              <label className="settings-payment estaciones-toggle"><span><b>Activa</b><small>Habilitar en la configuración</small></span><input type="checkbox" checked={estacion.activa} disabled={!impresoraDe(Number(estacion.idImpresora))?.activa} onChange={e => setEstacion({ ...estacion, activa: e.target.checked })}/></label>
-              <div className="printer-actions"><button className="button primary" type="submit" disabled={!nombreValido(estacion.nombre) || !estacion.idImpresora}>Guardar estación</button><button className="button outline" type="button" onClick={() => setEstacion(nuevaEstacion())}>Limpiar</button></div>
-            </fieldset>
-          {error && <p role="alert" className="estaciones-error">{error}</p>}</form></Modal>}
+          {!datos.estaciones.length && <p className="muted">Sin estaciones de preparación.</p>}
+          {datos.estaciones.map(s => <div className="estaciones-fila" key={s.idEstacion}>
+            <div><strong>{s.nombre}</strong><small className="estaciones-secundario">{impresoraDe(s.idImpresora)?.nombre ?? 'Impresora no disponible'}</small></div>
+            <div className="estaciones-acciones">
+              <EstadoEstacion activa={s.activa}/>
+              <button type="button" className="button outline estaciones-accion-breve" aria-label={`Editar estación ${s.nombre}`} disabled={ocupado} onClick={() => { setEstacion({ ...s }); setError(''); setModal('estacion'); }}>Editar</button>
+            </div>
+          </div>)}
         </section>
       </div>
-      <h3 className="estaciones-subtitulo">Asignaciones del catálogo</h3>
-      <p className="settings-hint">Una categoría o variante solo puede tener una asignación directa. Puedes cambiarla directamente de estación. Propuesta de prioridad: la variante específica prevalece sobre su categoría; pendiente de integrar con impresión.</p>
-      {datos.estaciones.map(s => <div className="surface settings-card" key={s.idEstacion} style={{ marginBlock: '12px' }}>
-        <strong>{s.nombre} · {s.activa ? 'Activa' : 'Inactiva'}</strong>
-        {!datos.asignaciones.some(a => a.idEstacion === s.idEstacion) && <p className="settings-hint">Sin asignaciones.</p>}
-        {datos.asignaciones.filter(a => a.idEstacion === s.idEstacion).map(a => <div className="printer-status" key={a.idAsignacion}><span>{nombreAsignacion(a)}</span><button className="button outline" type="button" disabled={ocupado} onClick={() => quitar(s.idEstacion, a.idAsignacion)}>Retirar</button></div>)}
-      </div>)}
-      <form onSubmit={enviarAsignacion}>
-        <fieldset disabled={ocupado} style={{ border: 0, padding: 0, minWidth: 0 }}>
-          <div className="settings-grid">
-            <label className="settings-field">Estación<select required value={asignacion.estacion} onChange={e => setAsignacion({ ...asignacion, estacion: e.target.value })}><option value="">Seleccionar</option>{datos.estaciones.map(s => <option key={s.idEstacion} value={s.idEstacion}>{s.nombre}</option>)}</select></label>
-            <label className="settings-field">Tipo<select value={asignacion.tipo} onChange={e => setAsignacion({ ...asignacion, tipo: e.target.value, elemento: '' })}><option value="categoria">Categoría</option><option value="variante">Variante de producto</option></select></label>
-            <label className="settings-field">Elemento<select required value={asignacion.elemento} onChange={e => setAsignacion({ ...asignacion, elemento: e.target.value })}><option value="">Seleccionar</option>{opciones.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select></label>
-          </div>
-          <button className="button primary" type="submit" disabled={!opciones.length || !asignacion.estacion || !asignacion.elemento}>Asignar</button>
-        </fieldset>
-      </form>
+      {modal === 'impresora' && <FormularioEstaciones titulo={impresora.idImpresora ? 'Editar impresora' : 'Nueva impresora'}
+        ocupado={ocupado} error={error} guardar="Guardar impresora" deshabilitado={!nombreValido(impresora.nombre) || !ipValida(impresora.direccionIp)}
+        onSubmit={enviarImpresora} onClose={cerrarModal}>
+        <label className="settings-field">Nombre<input required maxLength={100} pattern=".*\S.*" value={impresora.nombre} onChange={e => setImpresora({ ...impresora, nombre: e.target.value })}/></label>
+        <label className="settings-field">Dirección IP<input required maxLength={45} placeholder="192.0.2.12" autoComplete="off" spellCheck={false} autoCapitalize="none" aria-describedby="estaciones-ip-ayuda" pattern="[0-9A-Fa-f:.]+" value={impresora.direccionIp} onChange={e => setImpresora({ ...impresora, direccionIp: e.target.value.replace(/[^0-9a-fA-F:.]/g, '') })}/><small id="estaciones-ip-ayuda">IPv4: 192.0.2.12 · IPv6: 2001:db8::12 (máx. 45 caracteres).</small>{impresora.direccionIp && !ipValida(impresora.direccionIp) && <small className="estaciones-error">Introduce una dirección IP completa y válida.</small>}</label>
+        <label className="settings-payment estaciones-toggle"><span><b>Impresora activa</b></span><input type="checkbox" checked={impresora.activa} onChange={e => setImpresora({ ...impresora, activa: e.target.checked })}/></label>
+      </FormularioEstaciones>}
+      {modal === 'estacion' && <FormularioEstaciones titulo={estacion.idEstacion ? 'Editar estación' : 'Nueva estación'}
+        ocupado={ocupado} error={error} guardar="Guardar estación" deshabilitado={!nombreValido(estacion.nombre) || !estacion.idImpresora}
+        onSubmit={enviarEstacion} onClose={cerrarModal}>
+        <label className="settings-field">Nombre<input required maxLength={100} pattern=".*\S.*" value={estacion.nombre} onChange={e => setEstacion({ ...estacion, nombre: e.target.value })}/></label>
+        <label className="settings-field">Impresora
+          <select required value={estacion.idImpresora} onChange={e => setEstacion({ ...estacion, idImpresora: e.target.value, activa: estacion.activa && Boolean(impresoraDe(Number(e.target.value))?.activa) })}>
+            <option value="">Selecciona una impresora</option>
+            {impresorasLibres.map(i => <option key={i.idImpresora} value={i.idImpresora}>{i.nombre} · {i.direccionIp}{i.activa ? '' : ' (inactiva)'}</option>)}
+          </select>
+        </label>
+        {!impresorasLibres.length && <p className="muted">Agrega una impresora de cocina que puedas vincular a esta estación.</p>}
+        <label className="settings-payment estaciones-toggle"><span><b>Estación activa</b><small>Requiere una impresora activa.</small></span><input type="checkbox" checked={estacion.activa} disabled={!impresoraDe(Number(estacion.idImpresora))?.activa} onChange={e => setEstacion({ ...estacion, activa: e.target.checked })}/></label>
+      </FormularioEstaciones>}
+      <section className="estaciones-asignaciones">
+        <h3>Asignaciones del catálogo</h3>
+        <p className="settings-hint">Cada categoría o variante admite una asignación directa. Para moverla, vuelve a asignarla a otra estación.</p>
+        {datos.estaciones.map(s => <div className="estaciones-panel" key={s.idEstacion}>
+          <div className="estaciones-toolbar"><strong>{s.nombre}</strong><EstadoEstacion activa={s.activa}/></div>
+          {!datos.asignaciones.some(a => a.idEstacion === s.idEstacion) && <p className="muted">Sin asignaciones.</p>}
+          {datos.asignaciones.filter(a => a.idEstacion === s.idEstacion).map(a => <div className="estaciones-fila" key={a.idAsignacion}><span>{nombreAsignacion(a)}</span><button className="button outline estaciones-accion-breve" type="button" disabled={ocupado} onClick={() => quitar(s.idEstacion, a.idAsignacion)}>Retirar</button></div>)}
+        </div>)}
+        <form className="estaciones-panel" onSubmit={enviarAsignacion}>
+          <h4>Nueva asignación</h4>
+          <fieldset disabled={ocupado}>
+            <div className="estaciones-campos">
+              <label className="settings-field">Estación
+                <select required value={asignacion.estacion} onChange={e => setAsignacion({ ...asignacion, estacion: e.target.value })}>
+                  <option value="">Selecciona una estación</option>
+                  {datos.estaciones.map(s => <option key={s.idEstacion} value={s.idEstacion}>{s.nombre}</option>)}
+                </select>
+              </label>
+              <label className="settings-field">Tipo
+                <select value={asignacion.tipo} onChange={e => setAsignacion({ ...asignacion, tipo: e.target.value, elemento: '' })}>
+                  <option value="categoria">Categoría</option>
+                  <option value="variante">Variante de producto</option>
+                </select>
+              </label>
+              <label className="settings-field">Elemento
+                <select required value={asignacion.elemento} onChange={e => setAsignacion({ ...asignacion, elemento: e.target.value })}>
+                  <option value="">{asignacion.tipo === 'categoria' ? 'Selecciona una categoría' : 'Selecciona una variante'}</option>
+                  {opciones.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="estaciones-acciones"><button className="button primary" type="submit" disabled={!opciones.length || !asignacion.estacion || !asignacion.elemento}>Asignar</button></div>
+          </fieldset>
+        </form>
+      </section>
       <p className="integration-note">Variantes disponibles sin estación activa e impresora activa (según la prioridad propuesta): {sinEstacion.length ? sinEstacion.map(etiquetaVariante).join(', ') : 'Ninguna'}.</p>
     </>}
   </section>;

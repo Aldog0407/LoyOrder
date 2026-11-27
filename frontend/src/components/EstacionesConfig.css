@@ -1,23 +1,187 @@
-.estaciones-config { margin-top: 24px; }
-.estaciones-config .estaciones-toolbar { display: flex; justify-content: flex-end; flex-wrap: wrap; margin-bottom: 12px; }
-.estaciones-config fieldset { display: grid; gap: 14px; }
-.estaciones-config .settings-field { display: grid; gap: 7px; min-width: 0; }
-.estaciones-config .settings-field select {
-  width: 100%; min-height: 44px; padding: 10px 12px; font: inherit;
-  color: inherit; background: #fff; border: 1px solid #e6ddd0; border-radius: 10px;
+.estaciones-config {
+  margin-top: 24px;
 }
-.estaciones-config .settings-field select:focus-visible { outline: 2px solid #ea580c; outline-offset: 2px; }
-.estaciones-config .settings-field small { font-size: 12px; font-weight: 400; line-height: 1.5; }
-.estaciones-config .estaciones-toggle { margin: 0; }
-.estaciones-config .estaciones-subtitulo { margin-top: 24px; }
-.estaciones-config .estaciones-aviso, .estaciones-config .estaciones-error { padding: 10px 12px; border-radius: 8px; }
-.estaciones-config .estaciones-aviso { color: #166534; background: #edf8ef; }
-.estaciones-config .estaciones-error { color: #991b1b; background: #fff1f0; }
-.estaciones-config .printer-status { gap: 12px; flex-wrap: wrap; overflow-wrap: anywhere; }
-.estaciones-config .printer-actions { flex-wrap: wrap; }
-@media (max-width: 700px) { .estaciones-config .settings-grid { grid-template-columns: minmax(0, 1fr); } }
 
-.estaciones-config .estaciones-toolbar { align-items: center; justify-content: space-between; gap: 12px; }
-.estaciones-config .estaciones-dialog { width: min(560px, 95vw); max-height: 85vh; overflow: auto; }
-.estaciones-config .estaciones-dialog form { padding-top: 12px; }
-.estaciones-config .estaciones-dialog h4 { margin-bottom: 8px; }
+.estaciones-config .estaciones-toolbar,
+.estaciones-config .estaciones-fila,
+.estaciones-config .estaciones-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.estaciones-config .estaciones-toolbar,
+.estaciones-config .estaciones-fila {
+  justify-content: space-between;
+}
+
+.estaciones-config .estaciones-toolbar {
+  margin-bottom: 12px;
+}
+
+.estaciones-config .estaciones-toolbar :is(h3, .settings-card-head),
+.estaciones-config .estaciones-panel > p,
+.estaciones-config .estaciones-acciones .button {
+  margin: 0;
+}
+
+.estaciones-config .estaciones-listas,
+.estaciones-config .estaciones-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.estaciones-config .estaciones-campos {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.estaciones-config .estaciones-panel {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.estaciones-config .estaciones-fila {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.estaciones-config .estaciones-fila:last-child {
+  padding-bottom: 0;
+}
+
+.estaciones-config .estaciones-acciones {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.estaciones-config .estaciones-secundario {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.estaciones-config .estaciones-estado {
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: #f2eee8;
+  color: #514c45;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.estaciones-config .estaciones-estado.activa {
+  background: #edf8ef;
+  color: #166534;
+}
+
+.estaciones-config button.estaciones-accion-breve {
+  min-height: 32px;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.estaciones-config .estaciones-asignaciones {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.estaciones-config .estaciones-asignaciones > :is(h3, p),
+.estaciones-config .estaciones-panel h4 {
+  margin: 0;
+}
+
+.estaciones-config form.estaciones-panel h4 {
+  margin-bottom: 12px;
+}
+
+.estaciones-config fieldset {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.estaciones-config .settings-field {
+  min-width: 0;
+}
+
+.estaciones-config .settings-field select {
+  appearance: none;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 32px 10px 12px;
+  border: 1px solid #ddd4c8;
+  border-radius: var(--radius-button);
+  background:
+    linear-gradient(45deg, transparent 50%, #514c45 50%) calc(100% - 17px) 50% / 5px 5px no-repeat,
+    linear-gradient(135deg, #514c45 50%, transparent 50%) calc(100% - 12px) 50% / 5px 5px no-repeat,
+    var(--white);
+  color: var(--text);
+  font: inherit;
+  text-overflow: ellipsis;
+}
+
+.estaciones-config .settings-field select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.estaciones-config .settings-field small {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.estaciones-config .estaciones-toggle {
+  margin: 0;
+}
+
+.estaciones-config .estaciones-aviso,
+.estaciones-config .estaciones-error {
+  padding: 10px 12px;
+  border-radius: var(--radius-button);
+}
+
+.estaciones-config .estaciones-aviso {
+  color: #166534;
+  background: #edf8ef;
+}
+
+.estaciones-config .estaciones-error {
+  color: #991b1b;
+  background: #fff1f0;
+}
+
+.estaciones-config .modal.estaciones-dialog {
+  width: min(560px, 100%);
+  padding: clamp(18px, 4vw, 30px);
+}
+
+.estaciones-config .estaciones-dialog h3 {
+  margin: 0 48px 18px 0;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+
+.estaciones-config .estaciones-dialog .estaciones-acciones {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.estaciones-config .estaciones-dialog form > .estaciones-error {
+  margin: 12px 0 0;
+}
+
+@media (max-width: 700px) {
+  .estaciones-config .estaciones-listas,
+  .estaciones-config .estaciones-campos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
