@@ -3,12 +3,17 @@ import { obtenerPedidosOperador, cambiarEstadoPedido, reintentarVenta } from '..
 import { money } from '../utils/formato.js';
 import Modal from '../components/Modal.jsx';
 
+const ACCIONES_CANCELACION = {
+  Recibido: { boton: 'Rechazar pedido', confirmar: 'Confirmar rechazo' },
+  'En preparación': { boton: 'Cancelar pedido', confirmar: 'Confirmar cancelación' },
+};
+
 export default function OperatorView() {
   const [pedidos, setPedidos] = useState([]);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(null);
-  const [cancelando, setCancelando] = useState(null);
+  const [cierre, setCierre] = useState(null);
   const ocupado = useRef(false);
   const version = useRef(0);
   const activo = useRef(true);
@@ -38,12 +43,16 @@ export default function OperatorView() {
     try {
       if (estado === 'REINTENTAR_VENTA') await reintentarVenta(folio);
       else await cambiarEstadoPedido(folio, estado, motivo);
-      setCancelando(null);
+      setCierre(null);
       ocupado.current = false;
       await cargar();
     } catch (fallo) { setError(fallo.message); }
     finally { ocupado.current = false; setActualizando(null); setCargando(false); }
   }
+
+  const confirmarCierre = cierre && pedidos.some(p => p.folio === cierre.folio && p.estado === cierre.estado)
+    ? ACCIONES_CANCELACION[cierre.estado]
+    : null;
 
   return <main className="container page">
     <div className="page-heading"><span className="eyebrow orange">RESTAURANTE</span><h1>Operación de pedidos</h1>
@@ -66,18 +75,18 @@ export default function OperatorView() {
         {p.estado === 'Recibido' && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'En preparación')}>Aceptar y preparar</button>}
         {p.estado === 'En preparación' && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, p.tipoEntrega === 'Domicilio' ? 'Enviado' : 'Listo para recoger')}>{p.tipoEntrega === 'Domicilio' ? 'Marcar Enviado' : 'Listo para recoger'}</button>}
         {['Enviado', 'Listo para recoger'].includes(p.estado) && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'Entregado')}>Marcar entregado</button>}
-        {['Recibido', 'En preparación'].includes(p.estado) && <button className="button outline" disabled={!!actualizando} onClick={() => setCancelando(p.folio)}>Cancelar pedido</button>}
+        {ACCIONES_CANCELACION[p.estado] && <button className="button outline" disabled={!!actualizando} onClick={() => setCierre({ folio: p.folio, estado: p.estado })}>{ACCIONES_CANCELACION[p.estado].boton}</button>}
         {actualizando === p.folio && <span role="status">Guardando estado…</span>}
       </div>
     </article>)}</div>
     <p className="muted">Se muestran hasta 50 pedidos y se consultan cada 10 segundos con la pestaña visible.</p>
-    {cancelando && <Modal label="Cancelar pedido" onClose={() => { if (!actualizando) setCancelando(null); }}>
-      <h2>Cancelar {cancelando}</h2><form onSubmit={event => {
+    {confirmarCierre && <Modal label={confirmarCierre.boton} onClose={() => { if (!actualizando) setCierre(null); }}>
+      <h2>{confirmarCierre.boton} {cierre.folio}</h2><form onSubmit={event => {
         event.preventDefault();
         const motivo = new FormData(event.currentTarget).get('motivo').trim();
-        if (motivo) void cambiar(cancelando, 'Cancelado', motivo);
+        if (motivo) void cambiar(cierre.folio, 'Cancelado', motivo);
       }}><label>Motivo<textarea name="motivo" required maxLength={1000} disabled={!!actualizando}/></label>
-        <button className="button primary full" disabled={!!actualizando}>Confirmar cancelación</button>
+        <button className="button primary full" disabled={!!actualizando}>{confirmarCierre.confirmar}</button>
       </form>{error && <p role="alert">{error}</p>}
     </Modal>}
   </main>;
