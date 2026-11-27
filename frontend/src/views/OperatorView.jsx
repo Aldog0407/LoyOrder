@@ -3,6 +3,7 @@ import { obtenerPedidosOperador, cambiarEstadoPedido, reintentarVenta } from '..
 import { money } from '../utils/formato.js';
 import Modal from '../components/Modal.jsx';
 import EditarPedido from '../components/EditarPedido.jsx';
+import { avisoTicket, reimprimirTicket } from '../services/ticket.js';
 
 const ACCIONES_CANCELACION = {
   Recibido: { boton: 'Rechazar pedido', confirmar: 'Confirmar rechazo' },
@@ -12,6 +13,7 @@ const ACCIONES_CANCELACION = {
 export default function OperatorView() {
   const [pedidos, setPedidos] = useState([]);
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(null);
   const [cierre, setCierre] = useState(null);
@@ -42,9 +44,11 @@ export default function OperatorView() {
     version.current++;
     setActualizando(folio);
     setError('');
+    setAviso('');
     try {
       if (estado === 'REINTENTAR_VENTA') await reintentarVenta(folio);
-      else await cambiarEstadoPedido(folio, estado, motivo);
+      else if (estado === 'REIMPRIMIR_TICKET') setAviso(`Ticket de ${folio} reimpreso en ${(await reimprimirTicket(folio)).impresora}.`);
+      else setAviso(avisoTicket(await cambiarEstadoPedido(folio, estado, motivo)));
       setCierre(null);
       ocupado.current = false;
       await cargar();
@@ -62,6 +66,7 @@ export default function OperatorView() {
       <button className="button outline" disabled={cargando || !!actualizando} onClick={() => void cargar()}>Actualizar pedidos</button>
     </div>
     {error && <p className="checkout-error" role="alert">{error}</p>}
+    {aviso && <p className="ticket-aviso" role="status">{aviso}</p>}
     {cargando && <p role="status">Consultando pedidos…</p>}
     {!cargando && !error && pedidos.length === 0 && <p>No hay pedidos registrados en tu restaurante.</p>}
     <div className="history-list">{pedidos.map(p => <article className="surface history-card" key={p.folio}>
@@ -77,6 +82,7 @@ export default function OperatorView() {
         {p.estado === 'Recibido' && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'En preparación')}>Aceptar y preparar</button>}
         {p.estado === 'En preparación' && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, p.tipoEntrega === 'Domicilio' ? 'Enviado' : 'Listo para recoger')}>{p.tipoEntrega === 'Domicilio' ? 'Marcar Enviado' : 'Listo para recoger'}</button>}
         {['Enviado', 'Listo para recoger'].includes(p.estado) && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'Entregado')}>Marcar entregado</button>}
+        {['Enviado', 'Listo para recoger', 'Entregado'].includes(p.estado) && <button className="button outline" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'REIMPRIMIR_TICKET')}>Reimprimir ticket</button>}
         {ACCIONES_CANCELACION[p.estado] && <button className="button outline" disabled={!!actualizando} onClick={() => setCierre({ folio: p.folio, estado: p.estado })}>{ACCIONES_CANCELACION[p.estado].boton}</button>}
         <button className="button outline" disabled={!!actualizando} onClick={() => setEditando(p.folio)}>
           {ACCIONES_CANCELACION[p.estado] ? 'Modificar pedido' : 'Ver modificaciones'}

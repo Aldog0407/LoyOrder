@@ -149,3 +149,6 @@
 .mapbox-address-modal .map-address-fields input{width:100%;min-width:0;box-sizing:border-box;padding:12px;border:1px solid #d9d1c6;border-radius:8px;background:#fff;font:inherit;font-weight:400}
 .mapbox-address-modal .map-address-fields input:focus-visible{outline:2px solid #E8590C;outline-offset:2px}
 @media(max-width:600px){.mapbox-address-modal .map-address-fields-row{grid-template-columns:1fr}}
+
+/* 7.2.11 · aviso del ticket al despachar o reimprimir */
+.ticket-aviso{margin:12px 0;padding:10px 14px;border-radius:8px;background:#E9F7E7;color:#2f6f3c;font-weight:700}

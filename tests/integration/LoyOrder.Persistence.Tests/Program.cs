@@ -131,6 +131,7 @@ try
     total += await CheckoutPostgres.ComprobarAsync(fuente, raiz);
     total += await VentasPostgres.ComprobarAsync(fuente);
     total += await EdicionMenuPostgres.ComprobarAsync(fuente);
+    total += await TicketPostgres.ComprobarAsync(fuente);
     Console.WriteLine($"\n{total} pruebas aprobadas.");
     return 0;
 }

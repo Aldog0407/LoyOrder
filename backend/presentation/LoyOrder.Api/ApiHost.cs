@@ -30,6 +30,7 @@ public static class ApiHost
         builder.Services.AddScoped<IEdicionMenuRepository, EdicionMenuRepository>();
         builder.Services.AddScoped<EditarMenu>();
         builder.AgregarSincronizacion();
+        builder.AgregarImpresion();
         builder.Services.AddScoped<IPedidoClienteRepository, PedidoClienteRepository>();
         builder.Services.AddScoped<PedidosCliente>();
         builder.Services.AddScoped<ICrearPedidoRepository, CrearPedidoRepository>();

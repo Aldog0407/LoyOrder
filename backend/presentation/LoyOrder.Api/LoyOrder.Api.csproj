@@ -10,6 +10,7 @@
     <ProjectReference Include="../../application/LoyOrder.Application/LoyOrder.Application.csproj" />
     <ProjectReference Include="../../infrastructure/LoyOrder.Infrastructure.Persistence/LoyOrder.Infrastructure.Persistence.csproj" />
     <ProjectReference Include="../../infrastructure/LoyOrder.Infrastructure.Loyverse/LoyOrder.Infrastructure.Loyverse.csproj" />
+    <ProjectReference Include="../../infrastructure/LoyOrder.Infrastructure.Impresion/LoyOrder.Infrastructure.Impresion.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="11.0.1" />

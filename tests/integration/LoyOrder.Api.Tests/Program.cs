@@ -17,6 +17,8 @@ var reloj = new RelojPrueba();
 var origen = new OrigenPrueba();
 var catalogo = new CatalogoPrueba();
 var menu = new MenuPrueba();
+var tickets = new TicketsPrueba();
+var impresora = new ImpresoraPrueba();
 await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60", "--CorreoAutenticacion:Habilitado=false", "--Notificaciones:Habilitado=false", "--Ventas:Habilitado=false", "--Sincronizacion:Automatica=false"], services =>
 {
     services.AddDataProtection().UseEphemeralDataProtectionProvider();
@@ -32,6 +34,8 @@ await using var app = ApiHost.Crear(["--Auth:SesionMaximaMinutos=60", "--CorreoA
     services.AddSingleton<IOrigenCatalogo>(origen);
     services.AddSingleton<ICatalogoRepository>(catalogo);
     services.AddSingleton<IMenuRepository>(menu);
+    services.AddSingleton<ITicketRepository>(tickets);
+    services.AddSingleton<IImpresoraTermica>(impresora);
 });
 // La suite combinada supera los 20 intentos por minuto del acceso normal.
 // Este servidor temporal comprueba permisos y flujos sin limitar la frecuencia.
@@ -240,6 +244,50 @@ async Task VerificarAcceso()
     await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",400,new {estado="Inventado"});
     await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",400,new {estado="Entregado",idEmpleado=999});
     await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/NO-EXISTE/estado",404,new {estado="En preparación"});
+
+    // 7.2.11 · CU-19: ticket de venta (solo OPERADOR) y hoja de prueba (solo ADMINISTRADOR)
+    async Task Impresos(int esperados, string que)
+    {
+        if (impresora.Impresos.Count != esperados) throw new Exception($"{que}: esperaba {esperados} impresiones, hubo {impresora.Impresos.Count}");
+        Console.WriteLine($"OK {++total}: {que}");
+    }
+    await Check(HttpMethod.Get,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",200);
+    await Check(HttpMethod.Get,"/api/v1/operacion/pedidos/"+new string('x',31)+"/ticket",400);
+    await Check(HttpMethod.Get,"/api/v1/operacion/pedidos/AJENO/ticket",404);
+    await Impresos(0,"la vista previa no imprime");
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",200);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",200,new {reimpresion=true});
+    await Impresos(2,"imprime y reimprime");
+    if (!impresora.Impresos[^1].Doc.ComoTexto().Contains("REIMPRESIÓN") || impresora.Impresos[0].Doc.ComoTexto().Contains("REIMPRESIÓN"))
+        throw new Exception("Marca de reimpresión incorrecta");
+    Console.WriteLine($"OK {++total}: solo la reimpresión lleva la marca");
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",400,new {reimpresion=true,impresora="10.0.0.9"});
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/AJENO/ticket",404);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/CANCELADO-1/ticket",409);
+    tickets.SinImpresora=true;
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",409);
+    tickets.SinImpresora=false;
+    impresora.Caida=true;
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",503);
+    // Al despachar con la impresora caída el estado se guarda igual (200) y la respuesta trae el aviso.
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",200,new {estado="Listo para recoger"});
+    impresora.Caida=false;
+    await Impresos(2,"sin impresora disponible no se imprime");
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",200,new {estado="Listo para recoger"});
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/estado",200,new {estado="Entregado"});
+    await Impresos(3,"el despacho imprime el ticket original y los demás estados no");
+    await Check(HttpMethod.Post,"/api/v1/impresion/caja/prueba",403);
+    client.DefaultRequestHeaders.Authorization=new("Bearer",await Login("admin@prueba.test"));
+    await Check(HttpMethod.Post,"/api/v1/impresion/caja/prueba",200);
+    await Check(HttpMethod.Get,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",403);
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",403);
+    await Impresos(4,"hoja de prueba enviada");
+    client.DefaultRequestHeaders.Authorization=new("Bearer",await Login());
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",403);
+    await Check(HttpMethod.Post,"/api/v1/impresion/caja/prueba",403);
+    client.DefaultRequestHeaders.Authorization=null;
+    await Check(HttpMethod.Post,"/api/v1/operacion/pedidos/PRUEBA-1/ticket",401);
+    await Check(HttpMethod.Post,"/api/v1/impresion/caja/prueba",401);
     client.DefaultRequestHeaders.Authorization=new("Bearer",await Login());
     var operacionCheckout = Guid.NewGuid();
     var nuevaCompra = new SolicitudPedido(operacionCheckout,"Recolección",1,200,[new(11,2,100)],null);
@@ -468,4 +516,40 @@ sealed class VentasPrueba : IVentaRepository
     public Task<TrabajoVenta?> TomarAsync(CancellationToken ct)=>Task.FromResult<TrabajoVenta?>(null);
     public Task FinalizarAsync(TrabajoVenta t,ResultadoVenta r,CancellationToken ct)=>Task.CompletedTask;
     public Task ReintentarAsync(long operador,string folio,CancellationToken ct)=>folio=="PRUEBA-1"?Task.CompletedTask:throw new PedidoNoEncontradoException();
+}
+
+// 7.2.11 · dobles del ticket y de la impresora térmica
+sealed class TicketsPrueba : ITicketRepository
+{
+    public bool SinImpresora { get; set; }
+    private static DatosTicket Pedido(string folio, string estado) => new(1, "LoyOrder Demo", folio, estado, "Recolección", "Cliente",
+        null, null, null, null, null, "Efectivo", 100, 0, 100, [new("Refresco", "Cola", 2, 50, 100, null)]);
+    public Task<DatosTicket?> ObtenerAsync(long idOperador, string folio, CancellationToken ct) => Task.FromResult(folio switch
+    {
+        "PRUEBA-1" => Pedido(folio, "En preparación"),
+        "CANCELADO-1" => Pedido(folio, "Cancelado"),
+        _ => (DatosTicket?)null,
+    });
+    public Task<(long IdRestaurante, string Nombre)?> RestauranteDeAdministradorAsync(long id, CancellationToken ct) =>
+        Task.FromResult<(long, string)?>((1, "LoyOrder Demo"));
+    public Task<ImpresoraDestino?> ImpresoraCajaAsync(long idRestaurante, CancellationToken ct) =>
+        Task.FromResult(SinImpresora ? null : new ImpresoraDestino(1, "Caja", "127.0.0.1"));
+}
+
+sealed class ImpresoraPrueba : IImpresoraTermica
+{
+    public bool Caida { get; set; }
+    public List<(DocumentoImpresion Doc, bool Prueba)> Impresos { get; } = [];
+    public Task ImprimirAsync(ImpresoraDestino destino, DocumentoImpresion documento, CancellationToken ct)
+    {
+        if (Caida) throw new ImpresoraNoDisponibleException(destino.Nombre);
+        Impresos.Add((documento, false));
+        return Task.CompletedTask;
+    }
+    public Task ImprimirPruebaAsync(ImpresoraDestino destino, DocumentoImpresion encabezado, CancellationToken ct)
+    {
+        if (Caida) throw new ImpresoraNoDisponibleException(destino.Nombre);
+        Impresos.Add((encabezado, true));
+        return Task.CompletedTask;
+    }
 }

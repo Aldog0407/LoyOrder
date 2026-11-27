@@ -10,6 +10,8 @@ namespace LoyOrder.Api;
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record CambiarEstadoPedido(string Estado,string? Motivo);
+/// <summary>Respuesta al despachar: lo mismo que EstadoPedidoActualizado más el resultado del ticket (7.2.11).</summary>
+public sealed record EstadoPedidoConTicket(string Folio,string Estado,TicketDespacho Ticket);
 [ProducesResponseType(typeof(ErrorApi),400)]
 [ProducesResponseType(typeof(ErrorApi),401)]
 [ProducesResponseType(typeof(ErrorApi),403)]
@@ -39,8 +41,15 @@ public sealed class OperacionPedidosController(OperacionPedidos pedidos) : Contr
     [ProducesResponseType(typeof(EstadoPedidoActualizado), 200)]
     [Microsoft.AspNetCore.Http.EndpointDescription("Solo pedidos de tu restaurante. Estados: Recibido, En preparación, Enviado, Listo para recoger, Entregado y Cancelado. El servidor valida la transición y Cancelado exige motivo. Entregado deja pendiente el registro de venta.")]
     [HttpPost("{folio}/estado")]
-    public async Task<IActionResult> Cambiar(string folio,CambiarEstadoPedido datos,CancellationToken ct) =>
-        Ok(await pedidos.CambiarAsync(Operador,folio,datos.Estado,datos.Motivo,ct));
+    public async Task<IActionResult> Cambiar(string folio,CambiarEstadoPedido datos,CancellationToken ct)
+    {
+        var resultado = await pedidos.CambiarAsync(Operador,folio,datos.Estado,datos.Motivo,ct);
+        // 7.2.11 · CU-19: al despachar sale el ticket en la impresora de caja. El estado ya quedó guardado:
+        // si la impresora falla, la respuesta lleva un aviso y el operador puede reimprimir.
+        if (!ServicioTicket.EsDespacho(resultado.Estado)) return Ok(resultado);
+        var tickets = HttpContext.RequestServices.GetRequiredService<ServicioTicket>();
+        return Ok(new EstadoPedidoConTicket(resultado.Folio,resultado.Estado,await tickets.ImprimirEnDespachoAsync(Operador,resultado.Folio,ct)));
+    }
 
     [HttpGet("{folio}/edicion")]
     [ProducesResponseType(typeof(EditorPedido), 200)]
