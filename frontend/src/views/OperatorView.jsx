@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { obtenerPedidosOperador, cambiarEstadoPedido, reintentarVenta } from '../services/pedidos.js';
 import { money } from '../utils/formato.js';
 import Modal from '../components/Modal.jsx';
+import EditarPedido from '../components/EditarPedido.jsx';
 
 const ACCIONES_CANCELACION = {
   Recibido: { boton: 'Rechazar pedido', confirmar: 'Confirmar rechazo' },
@@ -14,6 +15,7 @@ export default function OperatorView() {
   const [cargando, setCargando] = useState(true);
   const [actualizando, setActualizando] = useState(null);
   const [cierre, setCierre] = useState(null);
+  const [editando, setEditando] = useState(null);
   const ocupado = useRef(false);
   const version = useRef(0);
   const activo = useRef(true);
@@ -76,10 +78,14 @@ export default function OperatorView() {
         {p.estado === 'En preparación' && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, p.tipoEntrega === 'Domicilio' ? 'Enviado' : 'Listo para recoger')}>{p.tipoEntrega === 'Domicilio' ? 'Marcar Enviado' : 'Listo para recoger'}</button>}
         {['Enviado', 'Listo para recoger'].includes(p.estado) && <button className="button primary" disabled={!!actualizando} onClick={() => void cambiar(p.folio, 'Entregado')}>Marcar entregado</button>}
         {ACCIONES_CANCELACION[p.estado] && <button className="button outline" disabled={!!actualizando} onClick={() => setCierre({ folio: p.folio, estado: p.estado })}>{ACCIONES_CANCELACION[p.estado].boton}</button>}
+        <button className="button outline" disabled={!!actualizando} onClick={() => setEditando(p.folio)}>
+          {ACCIONES_CANCELACION[p.estado] ? 'Modificar pedido' : 'Ver modificaciones'}
+        </button>
         {actualizando === p.folio && <span role="status">Guardando estado…</span>}
       </div>
     </article>)}</div>
     <p className="muted">Se muestran hasta 50 pedidos y se consultan cada 10 segundos con la pestaña visible.</p>
+    {editando && <EditarPedido key={editando} folio={editando} onClose={() => setEditando(null)} onCambio={() => void cargar()}/>}
     {confirmarCierre && <Modal label={confirmarCierre.boton} onClose={() => { if (!actualizando) setCierre(null); }}>
       <h2>{confirmarCierre.boton} {cierre.folio}</h2><form onSubmit={event => {
         event.preventDefault();

@@ -164,6 +164,46 @@ static class CheckoutPostgres
         Exigir(await Valor<long>($"SELECT count(*) FROM notificacion WHERE id_pedido={agotable.IdPedido}")==2,"Se duplicó el aviso de cancelación");
         Exigir(await Valor<long>($"SELECT count(*) FROM notificacion WHERE id_pedido={agotable.IdPedido} AND mensaje LIKE '%Motivo: Sin ingrediente%'")==1,"El aviso de cancelación omite el motivo");
         Ok("máximo de cinco intentos y cancelación concurrente con motivo obligatorio");
+
+        var edicion = new EdicionPedidos(new EdicionPedidoRepository(fuente), new MenuRepository(fuente),
+            new CrearPedidoRepository(fuente), origen);
+        var folioEditable = entregable.Folio;
+        var inicial = (await edicion.ConsultarAsync(operador, folioEditable, default)).Pedido;
+        await Esperar<PedidoNoEncontradoException>(() => edicion.ConsultarAsync(operadorAjeno, folioEditable, default));
+        await Esperar<CheckoutCambioException>(() => edicion.AnularAsync(operador, folioEditable,
+            new(inicial.Revision, inicial.Articulos.Single().Id, "Único artículo"), default));
+        await Sql($"UPDATE variante_producto SET precio=110,controla_inventario=true WHERE id_variante={variante}");
+        var agregar = new AgregarArticuloPedido(inicial.Revision, variante, 1, 110);
+        await Esperar<CheckoutCambioException>(() => edicion.AgregarAsync(operador, folioEditable, agregar, default));
+        await Sql($"UPDATE variante_producto SET controla_inventario=false WHERE id_variante={variante}");
+        await Esperar<CheckoutCambioException>(() => edicion.AgregarAsync(operador, folioEditable, agregar with { PrecioEsperado=100 }, default));
+
+        async Task<bool> IntentarAgregar()
+        {
+            try { await edicion.AgregarAsync(operador, folioEditable, agregar, default); return true; }
+            catch (CheckoutCambioException) { return false; }
+        }
+        var resultados = await Task.WhenAll(IntentarAgregar(), IntentarAgregar());
+        Exigir(resultados.Count(resultado => resultado) == 1, "Una edición concurrente duplicó el agregado");
+        var agregado = (await edicion.ConsultarAsync(operador, folioEditable, default)).Pedido;
+        Exigir(agregado.Total == 335 && agregado.CostoEnvio == 25 && agregado.Articulos.Count == 2 &&
+            agregado.Articulos[0].PrecioUnitario == 100 && agregado.Cambios.Count == 1,
+            "El agregado no conservó el envío, el precio original o el historial");
+        await operacion.CambiarAsync(operador, folioEditable, "En preparación", null, default);
+        await edicion.AnularAsync(operador, folioEditable, new(agregado.Revision, agregado.Articulos[1].Id, "El cliente lo pidió"), default);
+        var anulado = (await edicion.ConsultarAsync(operador, folioEditable, default)).Pedido;
+        var seguimiento = await repositorio.ConsultarAsync(cliente, folioEditable, default);
+        Exigir(anulado.Total == 225 && anulado.Articulos.Count == 1 && anulado.Cambios.Count == 2 &&
+            anulado.Cambios[0].Descripcion.Contains("El cliente lo pidió") && seguimiento?.Total == 225 &&
+            seguimiento.Articulos.Count == 1, "La anulación no actualizó el historial, los importes o el seguimiento");
+        Exigir(await Valor<bool>("SELECT has_table_privilege('loyorder_api', 'public.detalle_pedido', 'DELETE')"),
+            "El rol de la API no tiene permiso para anular el renglón");
+        await operacion.CambiarAsync(operador, folioEditable, "Enviado", null, default);
+        await Esperar<CheckoutCambioException>(() => edicion.AgregarAsync(operador, folioEditable,
+            agregar with { Revision=anulado.Revision }, default));
+        Exigir(!(await edicion.ConsultarAsync(operador, folioEditable, default)).Pedido.Editable,
+            "El pedido despachado se mostró editable");
+        Ok("edición de pedidos: stock, concurrencia, anulación, importes e historial");
         return total;
     }
 }

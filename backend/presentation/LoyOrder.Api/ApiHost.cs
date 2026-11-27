@@ -37,6 +37,8 @@ public static class ApiHost
         builder.Services.AddScoped<IHistorialPedidoRepository, HistorialPedidoRepository>();
         builder.Services.AddScoped<HistorialPedidos>();
         builder.Services.AddScoped<IOperacionPedidoRepository, OperacionPedidoRepository>();
+        builder.Services.AddScoped<IEdicionPedidoRepository, EdicionPedidoRepository>();
+        builder.Services.AddScoped<EdicionPedidos>();
         builder.Services.AddScoped<OperacionPedidos>();
         builder.Services.AddScoped<INotificacionPedidoRepository, NotificacionPedidoRepository>();
         builder.Services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(

@@ -41,4 +41,27 @@ public sealed class OperacionPedidosController(OperacionPedidos pedidos) : Contr
     [HttpPost("{folio}/estado")]
     public async Task<IActionResult> Cambiar(string folio,CambiarEstadoPedido datos,CancellationToken ct) =>
         Ok(await pedidos.CambiarAsync(Operador,folio,datos.Estado,datos.Motivo,ct));
+
+    [HttpGet("{folio}/edicion")]
+    [ProducesResponseType(typeof(EditorPedido), 200)]
+    public async Task<IActionResult> ConsultarEdicion(string folio, [FromServices] EdicionPedidos edicion, CancellationToken ct) =>
+        Ok(await edicion.ConsultarAsync(Operador, folio, ct));
+
+    [HttpPost("{folio}/articulos")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> AgregarArticulo(string folio, AgregarArticuloPedido datos,
+        [FromServices] EdicionPedidos edicion, CancellationToken ct)
+    {
+        await edicion.AgregarAsync(Operador, folio, datos, ct);
+        return NoContent();
+    }
+
+    [HttpPost("{folio}/articulos/anular")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> AnularArticulo(string folio, AnularArticuloPedido datos,
+        [FromServices] EdicionPedidos edicion, CancellationToken ct)
+    {
+        await edicion.AnularAsync(Operador, folio, datos, ct);
+        return NoContent();
+    }
 }

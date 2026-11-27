@@ -194,7 +194,7 @@ public sealed class CrearPedidoRepository(NpgsqlDataSource source) : ICrearPedid
         return configuracion;
     }
 
-    private static async Task<IReadOnlyList<VariantePedido>> LeerVariantes(NpgsqlConnection conexion, NpgsqlTransaction? tx,
+    internal static async Task<IReadOnlyList<VariantePedido>> LeerVariantes(NpgsqlConnection conexion, NpgsqlTransaction? tx,
         long restaurante, long[] ids, bool bloquear, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand("""

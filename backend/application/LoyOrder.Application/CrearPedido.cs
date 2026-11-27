@@ -56,10 +56,7 @@ public sealed class CrearPedido(ICrearPedidoRepository pedidos, IOrigenCatalogo 
         var controladas = variantes.Where(v => v.ControlaInventario).ToList();
         if (controladas.Count > 0)
         {
-            if (string.IsNullOrWhiteSpace(configuracion.IdTiendaLoyverse) || controladas.Any(v => string.IsNullOrWhiteSpace(v.IdLoyverse)))
-                throw new CheckoutCambioException("Falta vincular el inventario de los artículos con Loyverse.");
-            var existencias = (await origen.ExistenciasAsync(configuracion.IdTiendaLoyverse, ct))
-                .ToDictionary(e => e.VarianteId, e => e.Existencias);
+            var existencias = await ConsultarExistenciasAsync(origen, configuracion.IdTiendaLoyverse, controladas, ct);
             foreach (var variante in controladas)
             {
                 var cantidad = normalizada.Articulos.Single(a => a.IdVariante == variante.Id).Cantidad;
@@ -68,6 +65,14 @@ public sealed class CrearPedido(ICrearPedidoRepository pedidos, IOrigenCatalogo 
             }
         }
         return await pedidos.GuardarAsync(idUsuario, normalizada, hash, configuracion, variantes, reloj.GetUtcNow(), zona, ct);
+    }
+
+    public static async Task<IReadOnlyDictionary<string, decimal>> ConsultarExistenciasAsync(IOrigenCatalogo origen,
+        string? tienda, IReadOnlyList<VariantePedido> variantes, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tienda) || variantes.Any(v => string.IsNullOrWhiteSpace(v.IdLoyverse)))
+            throw new CheckoutCambioException("Falta vincular el inventario de los artículos con Loyverse.");
+        return (await origen.ExistenciasAsync(tienda, ct)).ToDictionary(e => e.VarianteId, e => e.Existencias);
     }
 
     public static SolicitudPedido Normalizar(SolicitudPedido s)

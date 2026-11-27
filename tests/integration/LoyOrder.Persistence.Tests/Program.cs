@@ -26,7 +26,7 @@ try
 {
     // LoyOrderObjetos_y_Permisos.sql da CONNECT sobre la base "loyorder" por nombre; aquí se aplica a la base temporal
     // para que la prueba no dependa de que exista una base loyorder en la máquina.
-    foreach (var script in new[] { "LoyOrderEsquema.sql", "LoyOrderObjetos_y_Permisos.sql", "LoyOrderAutenticacionCorreo.sql", "LoyOrderSincronizacion.sql", "LoyOrderCheckout.sql", "LoyOrderNotificaciones.sql", "LoyOrderVentas.sql", "LoyOrderEdicionMenu.sql" })
+    foreach (var script in new[] { "LoyOrderEsquema.sql", "LoyOrderObjetos_y_Permisos.sql", "LoyOrderAutenticacionCorreo.sql", "LoyOrderSincronizacion.sql", "LoyOrderCheckout.sql", "LoyOrderNotificaciones.sql", "LoyOrderVentas.sql", "LoyOrderEdicionMenu.sql", "LoyOrderEdicionPedidos.sql" })
         await Sql(File.ReadAllText(Path.Combine(raiz, "database", "scripts", script))
             .Replace("ON DATABASE loyorder TO", $"ON DATABASE {Base} TO"));
     await Sql("INSERT INTO restaurante (nombre, horario_apertura, horario_cierre, costo_envio) VALUES ('Prueba', '09:00', '22:00', 25)");

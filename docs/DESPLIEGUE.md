@@ -63,7 +63,7 @@ powershell -ExecutionPolicy Bypass -File deploy\bd\preparar_bd.ps1 -DatosSemilla
 
 El script hace lo siguiente:
 - Pide la contraseña de `postgres` y una **contraseña nueva para `loyorder_app_user`**. Esa contraseña se le pasa en persona al responsable de la API; no se escribe en ningún archivo ni en el chat del equipo.
-- Crea la base `loyorder` y corre `LoyOrderEsquema.sql`, `LoyOrderObjetos_y_Permisos.sql` y `LoyOrderAutenticacionCorreo.sql`. También aplica las migraciones repetibles `LoyOrderSincronizacion.sql`, `LoyOrderNotificaciones.sql`, `LoyOrderCheckout.sql`, `LoyOrderVentas.sql` y `LoyOrderEdicionMenu.sql`. Si la base ya existe, conserva sus datos y aplica únicamente las migraciones. No vuelve a ejecutar el esquema ni la semilla.
+- Crea la base `loyorder` y corre `LoyOrderEsquema.sql`, `LoyOrderObjetos_y_Permisos.sql` y `LoyOrderAutenticacionCorreo.sql`. También aplica las migraciones repetibles `LoyOrderSincronizacion.sql`, `LoyOrderNotificaciones.sql`, `LoyOrderCheckout.sql`, `LoyOrderVentas.sql`, `LoyOrderEdicionMenu.sql` y `LoyOrderEdicionPedidos.sql`. Si la base ya existe, conserva sus datos y aplica únicamente las migraciones. No vuelve a ejecutar el esquema ni la semilla.
 - Con `-DatosSemilla`, si la base se acaba de crear, carga `LoyOrderDatosSemilla.sql`: el restaurante 9001, clientes, productos y pedidos de demostración. Ese script solo acepta una base vacía. Si el equipo de la BD ya tiene la base con la semilla cargada, basta con correr el script: solo configura la contraseña y el acceso remoto.
 - Configura `listen_addresses = '*'` y agrega a `pg_hba.conf` esta regla (deja respaldo en `pg_hba.conf.antes_loyorder`):
   ```
